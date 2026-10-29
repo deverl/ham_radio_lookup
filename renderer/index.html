@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Ham Radio Lookup</title>
+  <link rel="stylesheet" href="mac.css">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <div class="window">
+    <header class="toolbar">
+      <h1>Ham Radio Lookup</h1>
+      <div class="toolbar-actions">
+        <button class="tool" id="export" title="Export the rows in the table as CSV" disabled>
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" d="M3.5 6.5V12.5h9V6.5"/><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" d="M8 2.5v6.2M5.8 5.2 8 2.8l2.2 2.4"/></svg>
+          Export
+        </button>
+        <button class="tool" id="database" title="License database">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.3" d="M3 4.2h10v2.2H3zM3 7.4h10v2.2H3zM3 10.6h10v2.2H3z"/><circle cx="4.6" cy="5.3" r="0.5" fill="currentColor"/><circle cx="4.6" cy="8.5" r="0.5" fill="currentColor"/><circle cx="4.6" cy="11.7" r="0.5" fill="currentColor"/></svg>
+          Database
+        </button>
+      </div>
+    </header>
+
+    <form class="search" id="search-form">
+      <div class="fields">
+        <div class="field">
+          <label for="call-sign">Call Sign</label>
+          <input id="call-sign" class="mono" placeholder="Exact" autocomplete="off" spellcheck="false">
+        </div>
+        <div class="field">
+          <label for="first-name">First Name</label>
+          <input id="first-name" placeholder="Starts with" autocomplete="off" spellcheck="false">
+        </div>
+        <div class="field">
+          <label for="last-name">Last Name</label>
+          <input id="last-name" placeholder="Starts with" autocomplete="off" spellcheck="false">
+        </div>
+        <div class="field">
+          <label for="city">City</label>
+          <input id="city" placeholder="Starts with" autocomplete="off" spellcheck="false">
+        </div>
+        <div class="field state">
+          <label for="state">State</label>
+          <input id="state" placeholder="ID" autocomplete="off" spellcheck="false" maxlength="2">
+        </div>
+      </div>
+      <div class="search-actions">
+        <button type="button" class="disclosure" id="options-toggle" aria-expanded="false">
+          <svg id="chevron" viewBox="0 0 12 12" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" d="M2 4.2 6 8l4-3.8"/></svg>
+          Options
+        </button>
+        <div class="spacer"></div>
+        <button type="button" class="regular" id="clear">Clear</button>
+        <div class="spinner" id="search-spinner" hidden></div>
+        <button type="submit" class="primary" id="search" title="Search the license database">Search</button>
+      </div>
+      <div class="options" id="options" hidden>
+        <div class="option-block">
+          <h3>License Status</h3>
+          <div class="checks" id="status-checks"></div>
+          <p class="hint" id="status-hint" hidden>None selected, so every status matches.</p>
+        </div>
+        <div class="option-block">
+          <h3>Operator Class</h3>
+          <div class="checks" id="class-checks"></div>
+          <p class="hint" id="class-hint" hidden>None selected, so every class matches.</p>
+        </div>
+        <p class="caption">Call sign matches the whole value. Name and city match from the start.</p>
+        <label class="title-case"><input type="checkbox" id="title-case" checked> Apply Title Case</label>
+      </div>
+    </form>
+    <div class="rule"></div>
+    <div class="banner" id="banner" hidden>
+      <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path fill="#f5a623" d="M8 1.6 15 14.4H1L8 1.6z"/><path fill="#1d1d1f" d="M7.3 6.2h1.4v4.1H7.3zm0 5h1.4V13H7.3z"/></svg>
+      <span id="banner-text"></span>
+      <button type="button" class="regular" id="banner-settings">Database Settings…</button>
+    </div>
+    <div class="filterbar" id="filterbar" hidden>
+      <span>Filter results:</span>
+      <input id="filter" placeholder="Type to filter by any field…" autocomplete="off" spellcheck="false" aria-label="Filter results">
+    </div>
+    <div class="results">
+      <div class="table-scroll grid" id="table-scroll" hidden>
+        <div class="row header" id="header"></div>
+        <div id="spacer">
+          <div id="rows"></div>
+        </div>
+      </div>
+      <div class="empty" id="empty"></div>
+    </div>
+    <div class="statusbar" id="statusbar" hidden>
+      <span id="summary"></span>
+      <div class="spacer" style="flex:1"></div>
+      <div class="spinner" id="status-spinner" hidden></div>
+    </div>
+  </div>
+
+  <dialog id="alert">
+    <h2 id="alert-title"></h2>
+    <p id="alert-message"></p>
+    <div class="dialog-buttons">
+      <button type="button" class="regular" id="alert-cancel"></button>
+      <button type="button" class="primary" id="alert-ok"></button>
+    </div>
+  </dialog>
+
+  <dialog id="sheet">
+    <h2>Update License Database</h2>
+    <p id="sheet-status">Preparing…</p>
+    <div class="progress" id="sheet-progress" hidden><div></div></div>
+    <p class="detail" id="sheet-detail"></p>
+    <p class="error" id="sheet-error" hidden></p>
+    <p class="sheet-note" id="sheet-lock" hidden>This step cannot be cancelled.</p>
+    <p class="sheet-note" id="sheet-files"></p>
+    <div class="dialog-buttons">
+      <button type="button" class="regular" id="sheet-cancel">Cancel</button>
+      <button type="button" class="primary" id="sheet-done" hidden>Done</button>
+    </div>
+  </dialog>
+
+  <div class="menu" id="menu" hidden>
+    <button type="button" id="menu-copy">Copy</button>
+    <button type="button" id="menu-search">Search This Call Sign</button>
+  </div>
+
+  <script src="../src/logic.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

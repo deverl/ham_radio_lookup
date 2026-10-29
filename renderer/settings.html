@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Settings</title>
+  <link rel="stylesheet" href="mac.css">
+  <link rel="stylesheet" href="settings.css">
+</head>
+<body>
+  <form id="form">
+    <div class="engine">
+      <span>Database</span>
+      <div class="choices">
+        <label><input type="radio" name="engine" value="sqlite"> SQLite</label>
+        <label><input type="radio" name="engine" value="mysql"> MySQL</label>
+      </div>
+    </div>
+
+    <div id="sqlite">
+      <div class="group">
+        <div class="row"><span>Location</span><div class="value" id="location"></div></div>
+        <div class="row"><span>Last built</span><div class="value" id="built"></div></div>
+      </div>
+      <p class="stale" id="stale" hidden>This database is more than 8 days old and should be updated.</p>
+      <button type="button" class="regular update" id="sqlite-update">Update Database…</button>
+    </div>
+
+    <div id="mysql" hidden>
+      <div class="group-title">Server</div>
+      <div class="group">
+        <label class="row"><span>Host</span><input id="host" type="text" autocomplete="off" spellcheck="false"></label>
+        <label class="row"><span>Port</span><input id="port" type="number" min="1" max="65535"></label>
+        <label class="row"><span>Database</span><input id="database" type="text" autocomplete="off" spellcheck="false"></label>
+      </div>
+      <div class="group-title">Account</div>
+      <div class="group">
+        <label class="row"><span>Username</span><input id="username" type="text" autocomplete="off" spellcheck="false"></label>
+        <label class="row"><span>Password</span><input id="password" type="password" autocomplete="off"></label>
+      </div>
+      <div class="actions">
+        <button type="button" class="regular" id="defaults">Use Local Defaults</button>
+        <div class="spacer"></div>
+        <div class="spinner" id="testing" hidden></div>
+        <button type="button" class="regular" id="test">Test Connection</button>
+        <button type="button" class="primary" id="save">Save</button>
+      </div>
+      <button type="button" class="regular update" id="mysql-update">Update Database…</button>
+      <p class="status" id="status" hidden></p>
+      <p class="note">The FCC web app uses host 127.0.0.1, port 3306, database fcc, and user fccuser.</p>
+    </div>
+  </form>
+  <script src="settings.js"></script>
+</body>
+</html>
