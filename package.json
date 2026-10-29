@@ -20,5 +20,8 @@
   "devDependencies": {
     "@electron/packager": "^20.3.0",
     "electron": "^39.0.0"
+  },
+  "overrides": {
+    "yauzl": "^3.3.1"
   }
 }
