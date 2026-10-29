@@ -1,4 +1,5 @@
 node_modules/
 dist/
 .electron-download/
+.electron-cache/
 .DS_Store
