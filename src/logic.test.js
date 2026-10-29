@@ -16,6 +16,12 @@ test('column counts match the FCC files', () => {
   assert.equal(schema.dmrColumns.length, 7);
 });
 
+test('sqlite import turns off defensive mode so the journal can be disabled', () => {
+  const script = schema.importScript('/tmp/HD.dat', '/tmp/EN.dat', '/tmp/AM.dat');
+  assert.ok(script.indexOf('.dbconfig defensive off') < script.indexOf('PRAGMA journal_mode = OFF'));
+  assert.match(script, /\.import \/tmp\/EN\.dat en/);
+});
+
 test('like prefixes escape wildcards and use the bang escape', () => {
   assert.equal(logic.likePrefix('Jo_n'), 'Jo!_n%');
   assert.equal(logic.likePrefix('100%'), '100!%%');

@@ -67,7 +67,8 @@ function sqlString(value) {
 }
 
 function importScript(hd, en, am) {
-  return `PRAGMA journal_mode = OFF;
+  return `.dbconfig defensive off
+PRAGMA journal_mode = OFF;
 PRAGMA synchronous = OFF;
 PRAGMA temp_store = MEMORY;
 PRAGMA cache_size = -262144;

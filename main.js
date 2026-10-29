@@ -91,6 +91,8 @@ function createSettingsWindow() {
   settingsWindow = new BrowserWindow({
     width: 560,
     height: 360,
+    useContentSize: process.platform !== 'darwin',
+    autoHideMenuBar: process.platform !== 'darwin',
     resizable: false,
     minimizable: false,
     maximizable: false,
@@ -106,6 +108,7 @@ function createSettingsWindow() {
       sandbox: false,
     },
   });
+  if (process.platform !== 'darwin') settingsWindow.setMenu(null);
   reveal(settingsWindow);
   settingsWindow.on('closed', () => { settingsWindow = null; });
   settingsWindow.loadFile(path.join(__dirname, 'renderer', 'settings.html'));
@@ -284,7 +287,8 @@ ipcMain.on('resize-settings', (event, height) => {
   const window = BrowserWindow.fromWebContents(event.sender);
   if (!window || window !== settingsWindow) return;
   const next = Math.min(780, Math.max(160, Math.ceil(height)));
-  const [width] = window.getContentSize();
+  const [contentWidth] = window.getContentSize();
+  const width = process.platform === 'darwin' ? contentWidth : Math.max(contentWidth, 560);
   window.setContentSize(width, next);
 });
 

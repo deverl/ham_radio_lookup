@@ -14,6 +14,12 @@ const RADIO_URL = 'https://radioid.net/static/user.csv';
 
 function downloadDirectory() {
   if (process.platform === 'darwin') return '/tmp/ham-radio-lookup';
+  // On Linux, /tmp is often a small RAM disk. The FCC files plus the database
+  // need a few gigabytes, so keep the work files on the home disk.
+  if (process.platform === 'linux') {
+    const base = process.env.XDG_CACHE_HOME || path.join(os.homedir(), '.cache');
+    return path.join(base, 'ham-radio-lookup');
+  }
   return path.join(os.tmpdir(), 'ham-radio-lookup');
 }
 
@@ -66,7 +72,7 @@ function byteDetail(written, expected) {
   return `${formatBytes(written)} of ${formatBytes(expected)}`;
 }
 
-function run(executable, args, { cwd, input } = {}) {
+function run(executable, args, { cwd, input, stderrLimit = 0 } = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(executable, args, {
       cwd,
@@ -77,7 +83,10 @@ function run(executable, args, { cwd, input } = {}) {
     child.stdout.setEncoding('utf8');
     child.stderr.setEncoding('utf8');
     child.stdout.on('data', (chunk) => { stdout += chunk; });
-    child.stderr.on('data', (chunk) => { stderr += chunk; });
+    child.stderr.on('data', (chunk) => {
+      stderr += chunk;
+      if (stderrLimit > 0 && stderr.length > stderrLimit) stderr = stderr.slice(-stderrLimit);
+    });
     child.on('error', (error) => {
       reject(failed(`${path.basename(executable)} could not be started. ${error.message}`, false));
     });
@@ -168,7 +177,7 @@ function requireSize(file, minimum, name) {
 
 async function extract(zip, dir) {
   const unzip = process.platform === 'darwin' && fs.existsSync('/usr/bin/unzip') ? '/usr/bin/unzip' : 'unzip';
-  await run(unzip, ['-o', '-q', zip], { cwd: dir });
+  await run(unzip, ['-o', '-q', zip, 'HD.dat', 'EN.dat', 'AM.dat'], { cwd: dir });
 }
 
 function locate(dir, name) {
@@ -190,12 +199,15 @@ function sqliteExecutable() {
 async function sqlite(script, database, cwd) {
   let output;
   try {
-    output = await run(sqliteExecutable(), ['-batch', database], { cwd, input: script });
+    output = await run(sqliteExecutable(), ['-batch', database], { cwd, input: script, stderrLimit: 16000 });
   } catch (error) {
     if (String(error.message).includes('ENOENT') || String(error.message).includes('could not be started')) {
       throw failed('The sqlite3 tool was not found.', false);
     }
     throw error;
+  }
+  if (output.stderr.includes('disk is full') || output.stderr.includes('INSERT failed')) {
+    throw failed(`The license import ran out of disk space.\n${tail(output.stderr)}`, false);
   }
   if (output.stderr.includes('expected') && output.stderr.includes('columns')) {
     throw failed(`The license file did not match the expected columns.\n${tail(output.stderr)}`, false);
@@ -325,6 +337,10 @@ async function updateDatabase({
     const hd = locate(dir, 'HD.dat');
     const en = locate(dir, 'EN.dat');
     const am = locate(dir, 'AM.dat');
+    requireSize(hd, 1_000_000, 'HD license file');
+    requireSize(en, 1_000_000, 'EN license file');
+    requireSize(am, 1_000_000, 'AM license file');
+    fs.rmSync(zip, { force: true });
 
     if (engine === 'mysql') {
       const database = validatedName(settings.database);
@@ -377,7 +393,13 @@ async function updateDatabase({
     check();
     requireSize(csv, 1000, 'RadioID user list');
 
-    const staging = path.join(dir, 'licenses.sqlite');
+    // Write the database on the same disk as the installed file. On Linux that
+    // disk is the home directory; /tmp is often too small for this import.
+    const staging = process.platform === 'linux'
+      ? path.join(path.dirname(databaseFile), 'licenses.sqlite.building')
+      : path.join(dir, 'licenses.sqlite');
+    fs.mkdirSync(path.dirname(staging), { recursive: true });
+    fs.rmSync(staging, { force: true });
     report({
       status: 'Importing license records…',
       fraction: null,
@@ -400,6 +422,9 @@ async function updateDatabase({
     await installDatabase(staging, path.dirname(databaseFile), databaseFile);
     databaseReplaced = true;
   } catch (error) {
+    if (!databaseReplaced && process.platform === 'linux') {
+      fs.rmSync(path.join(path.dirname(databaseFile), 'licenses.sqlite.building'), { force: true });
+    }
     if (error instanceof UpdateError) {
       if (error.databaseReplaced !== databaseReplaced && databaseReplaced) {
         throw failed(error.message, true);

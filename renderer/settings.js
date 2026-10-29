@@ -58,7 +58,8 @@ function apply(next, { replaceDraft } = { replaceDraft: false }) {
 
 function fit() {
   requestAnimationFrame(() => {
-    window.ham.resizeSettings(document.getElementById('form').offsetHeight);
+    const form = document.getElementById('form');
+    window.ham.resizeSettings(Math.ceil(form.getBoundingClientRect().bottom));
   });
 }
 
