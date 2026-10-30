@@ -78,10 +78,18 @@ process.env.TEMP = tmpDir;
 process.env.TMP = tmpDir;
 console.log(`Using temp directory: ${tmpDir}`);
 
-if (!fs.existsSync(zipDir)) {
+const electronPackage = path.join(root, 'node_modules', 'electron', 'package.json');
+if (!fs.existsSync(electronPackage)) {
   console.error(
-    `Missing ${zipDir}. Run: npm run install:electron`,
+    'Electron is not installed yet. Run: npm install --include=dev --ignore-scripts',
   );
+  process.exit(1);
+}
+const { version } = require(electronPackage);
+const zipName = `electron-v${version}-linux-${arch}.zip`;
+const zipPath = path.join(zipDir, zipName);
+if (!fs.existsSync(zipPath)) {
+  console.error(`Missing ${zipPath}. Run: npm run install:electron`);
   process.exit(1);
 }
 

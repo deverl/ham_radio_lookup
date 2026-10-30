@@ -184,18 +184,19 @@ sudo apt install -y mariadb-client
 
 ### Install the desktop app
 
-From a clone of this repository on an **ARM64** Linux machine:
+From a clone of this repository, run the install script that matches the machine:
 
 ```bash
 git clone https://github.com/deverl/ham_radio_lookup.git
 cd ham_radio_lookup
-./scripts/install-linux.sh
+./scripts/install-linux-arm64.sh   # ARM64
+./scripts/install-linux-x64.sh     # x64
 ```
 
 The install script will:
 
 1. Confirm it is running from the `ham_radio_lookup` project
-2. Build `dist/Ham Radio Lookup-linux-arm64` if that directory is missing (`npm install`, Electron download, then `npm run pack:linux-arm64`)
+2. Build `dist/Ham Radio Lookup-linux-arm64` or `dist/Ham Radio Lookup-linux-x64` if that directory is missing (`npm install`, Electron download, then the matching `npm run pack:linux-*`)
 3. Install a desktop entry at `~/.local/share/applications/ham-radio-lookup.desktop`
 4. Copy the packaged app to `~/.local/share/applications/ham-radio-lookup/`
 5. Install icons under `~/.local/share/ham-radio-lookup/icons/`
@@ -222,14 +223,16 @@ If you only want to package the app without installing the desktop entry, follow
 
 | Script | Purpose |
 | --- | --- |
-| `scripts/install-linux.sh` | Build the Linux arm64 package if needed, then install the desktop app and icons |
+| `scripts/install-linux-arm64.sh` | Build the Linux arm64 package if needed, then install the desktop app and icons |
+| `scripts/install-linux-x64.sh` | Build the Linux x64 package if needed, then install the desktop app and icons |
 | `scripts/uninstall-linux.sh` | Remove the desktop entry, installed app directory, and icons |
 | `scripts/clean.sh` | Delete derived project files: `dist/`, `node_modules/`, `.electron-download/`, `.electron-cache/`, and `.DS_Store` |
 
 Run them from a clone of this repository:
 
 ```bash
-./scripts/install-linux.sh
+./scripts/install-linux-arm64.sh
+./scripts/install-linux-x64.sh
 ./scripts/uninstall-linux.sh
 ./scripts/clean.sh
 ```
@@ -306,4 +309,4 @@ npm run pack:linux-arm64
 | `pack:linux-x64` | Linux x64 | `dist/Ham Radio Lookup-linux-x64/` |
 | `pack:linux-arm64` | Linux arm64 | `dist/Ham Radio Lookup-linux-arm64/` |
 
-These scripts also write a small launcher shell script named `Ham Radio Lookup` that starts the real binary with `--no-sandbox` (needed when the packaged app is copied to another machine). On ARM64 Ubuntu you can then install the desktop entry with `./scripts/install-linux.sh`.
+These scripts also write a small launcher shell script named `Ham Radio Lookup` that starts the real binary with `--no-sandbox` (needed when the packaged app is copied to another machine). On Ubuntu you can then install the desktop entry with `./scripts/install-linux-arm64.sh` or `./scripts/install-linux-x64.sh`.
