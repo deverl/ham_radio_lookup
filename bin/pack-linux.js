@@ -95,6 +95,7 @@ const pack = spawnSync(
     `--arch=${arch}`,
     '--out=dist',
     '--overwrite',
+    '--icon=build/icon.png',
     `--electron-zip-dir=${zipDir}`,
   ],
   { cwd: root, stdio: 'inherit', env: process.env },

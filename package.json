@@ -9,9 +9,9 @@
     "start": "node ./node_modules/electron/cli.js .",
     "test": "node --test src/*.test.js",
     "install:electron": "node bin/install-electron.js",
-    "pack:mac": "node ./node_modules/@electron/packager/bin/electron-packager.mjs . \"Ham Radio Lookup\" --platform=darwin --arch=arm64 --out=dist --overwrite --app-bundle-id=us.ds6.HamRadioLookup",
-    "pack:win-x64": "node ./node_modules/@electron/packager/bin/electron-packager.mjs . \"Ham Radio Lookup\" --platform=win32 --arch=x64 --out=dist --overwrite",
-    "pack:win-arm64": "node ./node_modules/@electron/packager/bin/electron-packager.mjs . \"Ham Radio Lookup\" --platform=win32 --arch=arm64 --out=dist --overwrite",
+    "pack:mac": "node ./node_modules/@electron/packager/bin/electron-packager.mjs . \"Ham Radio Lookup\" --platform=darwin --arch=arm64 --out=dist --overwrite --icon=build/icon.png --app-bundle-id=us.ds6.HamRadioLookup",
+    "pack:win-x64": "node ./node_modules/@electron/packager/bin/electron-packager.mjs . \"Ham Radio Lookup\" --platform=win32 --arch=x64 --out=dist --overwrite --icon=build/icon.png",
+    "pack:win-arm64": "node ./node_modules/@electron/packager/bin/electron-packager.mjs . \"Ham Radio Lookup\" --platform=win32 --arch=arm64 --out=dist --overwrite --icon=build/icon.png",
     "pack:linux-x64": "node bin/pack-linux.js x64",
     "pack:linux-arm64": "node bin/pack-linux.js arm64"
   },

@@ -24,6 +24,8 @@ const database = require('./src/database');
 const { updateDatabase } = require('./src/updater');
 const { maintenanceTitle } = require('./src/logic');
 
+const windowIcon = path.join(__dirname, 'build', 'icon.png');
+
 app.setName('Ham Radio Lookup');
 app.setAboutPanelOptions({
   applicationName: 'Ham Radio Lookup',
@@ -66,6 +68,7 @@ function createMainWindow() {
     minWidth: 900,
     minHeight: 520,
     title: 'Ham Radio Lookup',
+    icon: windowIcon,
     backgroundColor: chromeColor('main'),
     show: process.platform === 'darwin' ? false : true,
     ...macWindowChrome(),
@@ -98,6 +101,7 @@ function createSettingsWindow() {
     maximizable: false,
     fullscreenable: false,
     title: 'Settings',
+    icon: windowIcon,
     backgroundColor: chromeColor('settings'),
     show: process.platform === 'darwin' ? false : true,
     ...macWindowChrome(),
