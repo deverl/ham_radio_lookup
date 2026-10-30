@@ -206,9 +206,35 @@ After it finishes, launch **Ham Radio Lookup** from your app menu, or run:
 ~/.local/share/applications/ham-radio-lookup/ham-radio-lookup.sh
 ```
 
+### Uninstall the desktop app
+
+```bash
+./scripts/uninstall-linux.sh
+```
+
+That removes the desktop entry, the copied app under `~/.local/share/applications/ham-radio-lookup/`, and the installed icons. It leaves settings, the SQLite database, and FCC download cache in place (see [Where files are stored](#where-files-are-stored)).
+
 ### Manual build (optional)
 
 If you only want to package the app without installing the desktop entry, follow [Build packages](#build-packages) and run `npm run pack:linux-arm64` (or `pack:linux-x64` on an x64 machine).
+
+## Helper scripts
+
+| Script | Purpose |
+| --- | --- |
+| `scripts/install-linux.sh` | Build the Linux arm64 package if needed, then install the desktop app and icons |
+| `scripts/uninstall-linux.sh` | Remove the desktop entry, installed app directory, and icons |
+| `scripts/clean.sh` | Delete derived project files: `dist/`, `node_modules/`, `.electron-download/`, `.electron-cache/`, and `.DS_Store` |
+
+Run them from a clone of this repository:
+
+```bash
+./scripts/install-linux.sh
+./scripts/uninstall-linux.sh
+./scripts/clean.sh
+```
+
+`clean.sh` does not remove `./build` (committed app icons) or user data under `~/.config` / `~/.cache`. After a clean, run `npm install --include=dev --ignore-scripts` and `npm run install:electron` again before packaging or starting the app.
 
 ## Build and run (development)
 
