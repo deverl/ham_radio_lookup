@@ -17,9 +17,9 @@ ICON_DIR="${HOME}/.local/share/ham-radio-lookup/icons"
 
 if [[ ! -d "$DIST_DIR" ]]; then
   echo "Packaged app not found at ${DIST_DIR}; building..."
-  if [[ ! -d node_modules ]]; then
-    npm install --include=dev --ignore-scripts
-  fi
+  # Always refresh deps so newly added packages (e.g. pg) are present even
+  # when an older node_modules directory already exists.
+  npm install --include=dev --ignore-scripts
   npm run install:electron
   npm run pack:linux-x64
 fi
