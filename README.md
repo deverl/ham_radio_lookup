@@ -58,7 +58,7 @@ Search uses one database at a time. Open **Settings** (**Ham Radio Lookup > Sett
 
 ## Create or update the database
 
-The app does not include license data.
+The app does not include license data. The FCC updates its database files weekly, on Sunday. Update your database once a week. Updating more than once a week accomplishes nothing.
 
 With **SQLite** selected, the first launch says the database has not been created, and **Search** stays disabled until one exists. Create it from the main window, from **Tools > Create License Database…**, or from **Create Database…** in Settings. The finished file is installed only after the import succeeds, so a failed update leaves the previous file in place. If the file is more than 8 days old, the app asks you to update it, and search still works.
 
