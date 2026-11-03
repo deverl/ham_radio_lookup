@@ -115,9 +115,48 @@ test('sqlite search reads a small license file', () => {
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
+test('pgpass escapes colons and backslashes', () => {
+  const { pgPass } = require('./updater');
+  const text = pgPass({
+    host: '127.0.0.1',
+    port: 5432,
+    username: 'fc:c',
+    password: 'a\\b',
+  }, ['fcc']);
+  assert.equal(text, '127.0.0.1:5432:fcc:fc\\:c:a\\\\b\n');
+});
+
 test('database names reject punctuation', () => {
   assert.equal(logic.validatedName('fcc'), 'fcc');
   assert.throws(() => logic.validatedName('fcc;drop'), /cannot be used/);
+});
+
+test('postgres search uses numbered placeholders and case-insensitive prefixes', () => {
+  const built = logic.statement({
+    callSign: 'w7dns',
+    firstName: 'Jo_n',
+    lastName: '',
+    city: '',
+    state: '',
+    licenseStatuses: ['A'],
+    operatorClasses: [],
+  }, 'postgres');
+  assert.match(built.sql, /en\.call_sign = \$1/);
+  assert.match(built.sql, /en\.first_name ILIKE \$2 ESCAPE '!'/);
+  assert.match(built.sql, /hd\.license_status IN \(\$3\)/);
+  assert.match(built.sql, /COALESCE\(dmr\.radio_id, ''\)/);
+  assert.doesNotMatch(built.sql, /IFNULL/);
+  assert.deepEqual(built.parameters, ['W7DNS', 'Jo!_n%', 'A']);
+});
+
+test('postgres import copies the pipe files and skips the radioid header', () => {
+  const sql = schema.postgresLicenseSQL("/tmp/a'b.dat", '/tmp/EN.dat', '/tmp/AM.dat');
+  assert.ok(sql.includes("\\copy hd FROM '/tmp/a''b.dat' WITH (FORMAT csv, DELIMITER '|', QUOTE E'\\x01', ESCAPE E'\\x01')"));
+  assert.doesNotMatch(sql, /line_end/);
+  assert.match(sql, /CREATE INDEX en_call_sign_index/);
+  assert.doesNotMatch(sql, /dmr_call_sign_index/);
+  const dmr = schema.postgresDmrSQL('/tmp/user.csv');
+  assert.match(dmr, /\\copy dmr FROM '\/tmp\/user\.csv' WITH \(FORMAT csv, HEADER true\)/);
 });
 
 test('mysql load statements keep the pipe separator and the bang is not involved', () => {

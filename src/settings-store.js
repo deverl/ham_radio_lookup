@@ -10,11 +10,20 @@ const { readImportedAt } = require('./database');
 const { downloadDirectory } = require('./updater');
 
 const KEYCHAIN_SERVICE = 'us.ds6.HamRadioQuery';
-const KEYCHAIN_ACCOUNT = 'database-password';
+const MYSQL_ACCOUNT = 'database-password';
+const POSTGRES_ACCOUNT = 'postgres-password';
 
-const standard = {
+const mysqlStandard = {
   host: '127.0.0.1',
   port: 3306,
+  database: 'fcc',
+  username: 'fccuser',
+  password: 'fccuser',
+};
+
+const postgresStandard = {
+  host: '127.0.0.1',
+  port: 5432,
   database: 'fcc',
   username: 'fccuser',
   password: 'fccuser',
@@ -33,33 +42,37 @@ function settingsPath() {
   return path.join(app.getPath('userData'), 'settings.json');
 }
 
-function normalize(settings) {
+function normalize(settings, fallbackPort) {
   const port = Number(settings.port);
   return {
     host: String(settings.host ?? '').trim(),
-    port: port >= 1 && port <= 65535 ? port : 3306,
+    port: port >= 1 && port <= 65535 ? port : fallbackPort,
     database: String(settings.database ?? '').trim(),
     username: String(settings.username ?? '').trim(),
     password: String(settings.password ?? ''),
   };
 }
 
-function readKeychain() {
+function knownEngine(engine) {
+  return engine === 'mysql' || engine === 'postgres' ? engine : 'sqlite';
+}
+
+function readKeychain(account) {
   if (process.platform !== 'darwin') return null;
   try {
     return execFileSync('security', [
-      'find-generic-password', '-s', KEYCHAIN_SERVICE, '-a', KEYCHAIN_ACCOUNT, '-w',
+      'find-generic-password', '-s', KEYCHAIN_SERVICE, '-a', account, '-w',
     ], { encoding: 'utf8', timeout: 8000 }).replace(/\n$/, '');
   } catch {
     return null;
   }
 }
 
-function writeKeychain(password) {
+function writeKeychain(account, password) {
   if (process.platform !== 'darwin') return true;
   try {
     execFileSync('security', [
-      'add-generic-password', '-U', '-s', KEYCHAIN_SERVICE, '-a', KEYCHAIN_ACCOUNT, '-w', password,
+      'add-generic-password', '-U', '-s', KEYCHAIN_SERVICE, '-a', account, '-w', password,
     ], { timeout: 8000 });
     return true;
   } catch {
@@ -88,15 +101,24 @@ function readMacPreferences() {
 function persist() {
   const file = settingsPath();
   fs.mkdirSync(path.dirname(file), { recursive: true });
-  const { engine, settings } = memory;
+  const { engine, mysql, postgres } = memory;
   const body = {
     engine,
-    host: settings.host,
-    port: settings.port,
-    database: settings.database,
-    username: settings.username,
+    host: mysql.host,
+    port: mysql.port,
+    database: mysql.database,
+    username: mysql.username,
+    postgres: {
+      host: postgres.host,
+      port: postgres.port,
+      database: postgres.database,
+      username: postgres.username,
+    },
   };
-  if (process.platform !== 'darwin') body.password = settings.password;
+  if (process.platform !== 'darwin') {
+    body.password = mysql.password;
+    body.postgres.password = postgres.password;
+  }
   fs.writeFileSync(file, `${JSON.stringify(body, null, 2)}\n`, { mode: 0o600 });
 }
 
@@ -118,26 +140,48 @@ function load() {
     } : {};
     imported = Boolean(plist);
   }
-  const engine = stored.engine === 'mysql' ? 'mysql' : 'sqlite';
-  const settings = normalize({ ...standard, ...stored });
-  const keychain = readKeychain();
-  if (keychain != null) settings.password = keychain;
-  else if (process.platform !== 'darwin' && stored.password != null) settings.password = String(stored.password);
-  memory = { engine, settings };
+  const engine = knownEngine(stored.engine);
+  const mysql = normalize({ ...mysqlStandard, ...stored }, 3306);
+  const postgres = normalize({ ...postgresStandard, ...(stored.postgres || {}) }, 5432);
+  const mysqlKeychain = readKeychain(MYSQL_ACCOUNT);
+  if (mysqlKeychain != null) mysql.password = mysqlKeychain;
+  else if (process.platform !== 'darwin' && stored.password != null) mysql.password = String(stored.password);
+  const postgresKeychain = readKeychain(POSTGRES_ACCOUNT);
+  if (postgresKeychain != null) postgres.password = postgresKeychain;
+  else if (process.platform !== 'darwin' && stored.postgres && stored.postgres.password != null) {
+    postgres.password = String(stored.postgres.password);
+  }
+  memory = { engine, mysql, postgres };
   if (imported) persist();
   return memory;
 }
 
-function current() {
+function state() {
   return memory || load();
+}
+
+function current() {
+  const stored = state();
+  return {
+    engine: stored.engine,
+    mysql: stored.mysql,
+    postgres: stored.postgres,
+    settings: stored.engine === 'postgres' ? stored.postgres : stored.mysql,
+  };
 }
 
 function freshness() {
   return classifyFreshness(readImportedAt(databaseFile()));
 }
 
+function activeSettings() {
+  const stored = state();
+  return stored.engine === 'postgres' ? stored.postgres : stored.mysql;
+}
+
 function snapshot() {
-  const { engine, settings } = current();
+  const { engine } = state();
+  const settings = activeSettings();
   const fresh = freshness();
   return {
     engine,
@@ -151,18 +195,21 @@ function snapshot() {
 }
 
 function setEngine(engine) {
-  current().engine = engine === 'mysql' ? 'mysql' : 'sqlite';
+  state().engine = knownEngine(engine);
   persist();
   return snapshot();
 }
 
 function saveConnection(settings) {
-  current().settings = normalize(settings);
-  const stored = process.platform === 'darwin' ? writeKeychain(current().settings.password) : true;
+  const stored = state();
+  const slot = stored.engine === 'postgres' ? 'postgres' : 'mysql';
+  stored[slot] = normalize(settings, slot === 'postgres' ? 5432 : 3306);
+  const account = slot === 'postgres' ? POSTGRES_ACCOUNT : MYSQL_ACCOUNT;
+  const storedPassword = process.platform === 'darwin' ? writeKeychain(account, stored[slot].password) : true;
   persist();
   return {
     snapshot: snapshot(),
-    warning: stored ? null : 'The connection was saved, but the password could not be stored in the Keychain. It will be used until you quit.',
+    warning: storedPassword ? null : 'The connection was saved, but the password could not be stored in the Keychain. It will be used until you quit.',
   };
 }
 

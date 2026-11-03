@@ -29,7 +29,7 @@ const windowIcon = path.join(__dirname, 'build', 'icon.png');
 app.setName('Ham Radio Lookup');
 app.setAboutPanelOptions({
   applicationName: 'Ham Radio Lookup',
-  applicationVersion: '1.0.0',
+  applicationVersion: '1.1.0',
 });
 
 let mainWindow = null;
@@ -240,7 +240,7 @@ ipcMain.handle('save-connection', (_event, settings) => {
 
 ipcMain.handle('test-connection', async (_event, settings) => {
   try {
-    await database.testConnection(settings);
+    await database.testConnection(store.current().engine, settings);
     const normalized = {
       host: String(settings.host || '').trim(),
       port: Number(settings.port),

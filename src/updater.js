@@ -72,10 +72,11 @@ function byteDetail(written, expected) {
   return `${formatBytes(written)} of ${formatBytes(expected)}`;
 }
 
-function run(executable, args, { cwd, input, stderrLimit = 0 } = {}) {
+function run(executable, args, { cwd, input, stderrLimit = 0, env } = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(executable, args, {
       cwd,
+      env: env ? { ...process.env, ...env } : process.env,
       stdio: ['pipe', 'pipe', 'pipe'],
     });
     let stdout = '';
@@ -125,7 +126,7 @@ function download(url, destination, { onProgress, isCancelled, replaced = () => 
       }
       const lib = target.startsWith('http://') ? http : https;
       const request = lib.get(target, {
-        headers: { 'User-Agent': 'HamRadioLookup/1.0.0' },
+        headers: { 'User-Agent': 'HamRadioLookup/1.1.0' },
       }, (response) => {
         const status = response.statusCode || 0;
         if (status >= 300 && status < 400 && response.headers.location) {
@@ -251,6 +252,100 @@ async function mysqlExecutable() {
   throw failed('The mysql client was not found. Install MariaDB with Homebrew and try again.', false);
 }
 
+function pgPassField(value) {
+  return String(value).replaceAll('\\', '\\\\').replaceAll(':', '\\:');
+}
+
+function pgPass(settings, databases) {
+  return `${databases.map((database) => [
+    settings.host,
+    settings.port,
+    database,
+    settings.username,
+    settings.password,
+  ].map(pgPassField).join(':')).join('\n')}\n`;
+}
+
+async function commandPath(name) {
+  for (const shell of ['/bin/zsh', '/bin/sh']) {
+    if (!fs.existsSync(shell)) continue;
+    try {
+      const output = await run(shell, ['-lc', `command -v ${name}`], { cwd: os.tmpdir() });
+      const resolved = output.stdout.trim().split('\n').filter(Boolean).at(-1);
+      if (resolved && fs.existsSync(resolved)) return resolved;
+    } catch {
+      // Try the next shell.
+    }
+  }
+  return null;
+}
+
+async function psqlExecutable() {
+  const candidates = [
+    '/opt/homebrew/bin/psql',
+    '/usr/local/bin/psql',
+    '/opt/homebrew/opt/libpq/bin/psql',
+    '/usr/bin/psql',
+  ];
+  const found = candidates.find((candidate) => fs.existsSync(candidate));
+  if (found) return found;
+  const resolved = await commandPath('psql');
+  if (resolved) return resolved;
+  throw failed('The psql client was not found. Install the PostgreSQL client and try again.', false);
+}
+
+async function runPostgres(sql, settings, cwd, database = settings.database) {
+  if (!settings.host || !settings.username || !(settings.port >= 1 && settings.port <= 65535)) {
+    throw failed('The database connection settings are incomplete.', false);
+  }
+  if (/[\r\n]/.test(settings.host) || /[\r\n]/.test(settings.username) || /[\r\n]/.test(settings.password)) {
+    throw failed('The database connection settings contain a line break.', false);
+  }
+  const passFile = path.join(cwd, '.pgpass');
+  fs.writeFileSync(passFile, pgPass(settings, [database, 'postgres']), { mode: 0o600 });
+  try {
+    const psql = await psqlExecutable();
+    const output = await run(psql, [
+      '--no-psqlrc',
+      '-v',
+      'ON_ERROR_STOP=1',
+      '-h',
+      settings.host,
+      '-p',
+      String(settings.port),
+      '-U',
+      settings.username,
+      '-d',
+      database,
+      '--no-password',
+    ], {
+      cwd,
+      input: sql,
+      env: { PGPASSFILE: passFile, PGSSLMODE: 'disable' },
+    });
+    return output.stdout;
+  } finally {
+    fs.rmSync(passFile, { force: true });
+  }
+}
+
+async function ensurePostgresDatabase(settings, cwd) {
+  const database = validatedName(settings.database);
+  try {
+    await runPostgres('SELECT 1;', settings, cwd, database);
+    return database;
+  } catch (error) {
+    if (!/does not exist/i.test(String(error.message || ''))) throw error;
+  }
+  await runPostgres(
+    `CREATE DATABASE ${schema.quotedPostgresIdentifier(database)};`,
+    settings,
+    cwd,
+    'postgres',
+  );
+  return database;
+}
+
 async function runMySQL(sql, settings, cwd) {
   if (!settings.host || !settings.username || !(settings.port >= 1 && settings.port <= 65535)) {
     throw failed('The database connection settings are incomplete.', false);
@@ -342,15 +437,22 @@ async function updateDatabase({
     requireSize(am, 1_000_000, 'AM license file');
     fs.rmSync(zip, { force: true });
 
-    if (engine === 'mysql') {
+    if (engine === 'mysql' || engine === 'postgres') {
       const database = validatedName(settings.database);
+      if (engine === 'postgres') await ensurePostgresDatabase(settings, dir);
       report({
         status: 'Rebuilding license tables…',
         fraction: null,
         detail: 'This replaces the current license records and can take a few minutes.',
         canCancel: false,
       });
-      await runMySQL(schema.licenseSQL(database, hd, en, am), settings, dir);
+      const license = engine === 'postgres'
+        ? schema.postgresLicenseSQL(hd, en, am)
+        : schema.licenseSQL(database, hd, en, am);
+      const exec = engine === 'postgres'
+        ? (sql) => runPostgres(sql, settings, dir)
+        : (sql) => runMySQL(sql, settings, dir);
+      await exec(license);
       databaseReplaced = true;
       check();
 
@@ -374,7 +476,10 @@ async function updateDatabase({
         detail: 'This replaces the current DMR records.',
         canCancel: false,
       });
-      await runMySQL(schema.dmrSQL(database, csv), settings, dir);
+      const dmr = engine === 'postgres'
+        ? schema.postgresDmrSQL(csv)
+        : schema.dmrSQL(database, csv);
+      await exec(dmr);
       return;
     }
 
@@ -440,4 +545,5 @@ module.exports = {
   updateDatabase,
   UpdateError,
   optionQuoted,
+  pgPass,
 };

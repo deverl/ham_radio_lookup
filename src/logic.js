@@ -87,7 +87,7 @@ function trimmed(value) {
   return String(value ?? '').trim();
 }
 
-function statement(query) {
+function statement(query, engine) {
   const callSign = trimmed(query.callSign).toUpperCase();
   const firstName = trimmed(query.firstName);
   const lastName = trimmed(query.lastName);
@@ -95,39 +95,47 @@ function statement(query) {
   const state = trimmed(query.state).toUpperCase();
   if (!callSign && !firstName && !lastName && !city && !state) return null;
 
+  const postgres = engine === 'postgres';
+  const like = postgres ? 'ILIKE' : 'LIKE';
+  const nullFn = postgres ? 'COALESCE' : 'IFNULL';
+  let index = 0;
+  const mark = () => {
+    index += 1;
+    return postgres ? `$${index}` : '?';
+  };
   const clauses = [];
   const parameters = [];
   const escape = " ESCAPE '!'";
 
   if (callSign) {
-    clauses.push('en.call_sign = ?');
+    clauses.push(`en.call_sign = ${mark()}`);
     parameters.push(callSign);
   }
   if (firstName) {
-    clauses.push(`en.first_name LIKE ?${escape}`);
+    clauses.push(`en.first_name ${like} ${mark()}${escape}`);
     parameters.push(likePrefix(firstName));
   }
   if (lastName) {
-    clauses.push(`en.last_name LIKE ?${escape}`);
+    clauses.push(`en.last_name ${like} ${mark()}${escape}`);
     parameters.push(likePrefix(lastName));
   }
   if (city) {
-    clauses.push(`en.city LIKE ?${escape}`);
+    clauses.push(`en.city ${like} ${mark()}${escape}`);
     parameters.push(likePrefix(city));
   }
   if (state) {
-    clauses.push('en.state = ?');
+    clauses.push(`en.state = ${mark()}`);
     parameters.push(state);
   }
 
   const statuses = LICENSE_STATUSES.map((item) => item.code).filter((code) => query.licenseStatuses?.includes(code));
   if (statuses.length) {
-    clauses.push(`hd.license_status IN (${statuses.map(() => '?').join(', ')})`);
+    clauses.push(`hd.license_status IN (${statuses.map(() => mark()).join(', ')})`);
     parameters.push(...statuses);
   }
   const classes = OPERATOR_CLASSES.map((item) => item.code).filter((code) => query.operatorClasses?.includes(code));
   if (classes.length) {
-    clauses.push(`am.operator_class IN (${classes.map(() => '?').join(', ')})`);
+    clauses.push(`am.operator_class IN (${classes.map(() => mark()).join(', ')})`);
     parameters.push(...classes);
   }
 
@@ -142,7 +150,7 @@ function statement(query) {
        hd.license_status AS license_status,
        en.frn AS frn,
        am.region_code AS region_code,
-       IFNULL(dmr.radio_id, '') AS dmr_id
+       ${nullFn}(dmr.radio_id, '') AS dmr_id
 FROM en
 JOIN hd ON hd.sys_id = en.sys_id
 JOIN am ON am.sys_id = en.sys_id
@@ -250,11 +258,12 @@ function databaseNotice(freshness) {
 
 function confirmCopy(engine, freshness, databaseName, downloadDir) {
   const creating = engine === 'sqlite' && freshness.kind === 'missing';
-  if (engine === 'mysql') {
+  if (engine === 'mysql' || engine === 'postgres') {
+    const product = engine === 'postgres' ? 'PostgreSQL' : 'MySQL';
     return {
       title: 'Update License Database?',
       button: 'Update',
-      message: `This downloads the latest FCC amateur license file (about 190 MB) and the RadioID user list, then rebuilds the MySQL database ${databaseName}. The current license tables are replaced. Downloaded files are left in ${downloadDir}.`,
+      message: `This downloads the latest FCC amateur license file (about 190 MB) and the RadioID user list, then rebuilds the ${product} database ${databaseName}. The current license tables are replaced. Downloaded files are left in ${downloadDir}.`,
     };
   }
   if (creating) {

@@ -1,6 +1,6 @@
 # Ham Radio Lookup
 
-Ham Radio Lookup is an Electron app for searching United States amateur radio licenses. It reads either a MySQL database or a SQLite file built from the FCC Universal Licensing System amateur file and the RadioID DMR user list. Searches run on your computer. The app does not send a query to a server.
+Ham Radio Lookup is an Electron app for searching United States amateur radio licenses. It reads a MySQL database, a PostgreSQL database, or a SQLite file built from the FCC Universal Licensing System amateur file and the RadioID DMR user list. Searches run on your computer. The app does not send a query to a server.
 
 The window is titled **Ham Radio Lookup**. On macOS, settings can still use the legacy preference and Keychain identity `us.ds6.HamRadioQuery` from the earlier native [Swift/SwiftUI macOS app](https://github.com/deverl/ham_radio_query).
 
@@ -25,13 +25,14 @@ Operator class and license status are stored as the FCC's single-letter codes an
 - An internet connection the first time you create the database, and again whenever you update it
 - Node.js 22 or newer, if you are building the app yourself
 - MySQL or MariaDB, only if you choose MySQL instead of the built-in SQLite file
+- PostgreSQL, only if you choose PostgreSQL instead of the built-in SQLite file
 - On Linux, the packages listed under [Linux setup](#linux-setup-ubuntu--debian)
 
 The license file is about 190 MB. Building the database also downloads the RadioID user list and can take several minutes.
 
-## Choose MySQL or SQLite
+## Choose SQLite, MySQL, or PostgreSQL
 
-Search uses one database at a time. Open **Settings** (**Ham Radio Lookup > Settings…**, or **Ctrl+,** / **Command+,**) or click **Database** in the toolbar. At the top of that window, **Database** is a pair of radio buttons: **SQLite** and **MySQL**. The choice is saved, and the next search uses it.
+Search uses one database at a time. Open **Settings** (**Ham Radio Lookup > Settings…**, or **Ctrl+,** / **Command+,**) or click **Database** in the toolbar. At the top of that window, **Database** is a set of radio buttons: **SQLite**, **MySQL**, and **PostgreSQL**. The choice is saved, and the next search uses it. MySQL and PostgreSQL each keep their own host, port, database, username, and password.
 
 **SQLite** is the default. The license data lives in a file on this computer, so no database server is required. The settings window shows the file path and the last time it was built. **Create Database…** or **Update Database…** downloads the FCC and RadioID files and builds that file. Search stays disabled until the file exists.
 
@@ -53,13 +54,15 @@ Search uses one database at a time. Open **Settings** (**Ham Radio Lookup > Sett
 
 **Update Database…** downloads the FCC and RadioID files and rebuilds the license tables in the saved MySQL database. The database is created if that account is allowed to create it. This step needs the `mysql` command-line client. Search itself does not need that client. If the server is not running, the search says it could not connect.
 
+**PostgreSQL** uses the same connection fields, with its own saved values. **Use Local Defaults** fills in host `127.0.0.1`, port `5432`, database `fcc`, and user `fccuser`. **Update Database…** rebuilds the license tables in that database. The database is created if that account is allowed to create it and can connect to the `postgres` maintenance database. This step needs the `psql` command-line client. Search itself does not need that client.
+
 ## Create or update the database
 
 The app does not include license data.
 
 With **SQLite** selected, the first launch says the database has not been created, and **Search** stays disabled until one exists. Create it from the main window, from **Tools > Create License Database…**, or from **Create Database…** in Settings. The finished file is installed only after the import succeeds, so a failed update leaves the previous file in place. If the file is more than 8 days old, the app asks you to update it, and search still works.
 
-With **MySQL** selected, save the connection first, then use **Update Database…** in Settings or **Tools > Update License Database…**. That rebuilds the license tables in the MySQL database named in Settings. Search stays available while you do this.
+With **MySQL** or **PostgreSQL** selected, save the connection first, then use **Update Database…** in Settings or **Tools > Update License Database…**. That rebuilds the license tables in the database named in Settings. Search stays available while you do this.
 
 Either choice downloads the same files:
 
@@ -116,10 +119,11 @@ Double-clicking a row, or choosing **Search This Call Sign**, puts that call sig
 | --- | --- | --- |
 | SQLite license database | `~/Library/Application Support/Ham Radio Query/licenses.sqlite` | `~/.config/Ham Radio Query/licenses.sqlite` |
 | App settings | Electron `userData` | `~/.config/ham-radio-lookup/settings.json` |
-| MySQL password | Keychain item for `us.ds6.HamRadioQuery` | Stored in `settings.json` |
+| MySQL password | Keychain item `database-password` for `us.ds6.HamRadioQuery` | Stored in `settings.json` |
+| PostgreSQL password | Keychain item `postgres-password` for `us.ds6.HamRadioQuery` | Stored in `settings.json` |
 | FCC and RadioID downloads | `/tmp/ham-radio-lookup` | `~/.cache/ham-radio-lookup` |
 
-The SQLite folder is created when the first SQLite import succeeds. Deleting `licenses.sqlite` makes the app treat that file as missing. The age check uses the import time stored inside the file, not the file's modification date. The MySQL database stays on the server you configured.
+The SQLite folder is created when the first SQLite import succeeds. Deleting `licenses.sqlite` makes the app treat that file as missing. The age check uses the import time stored inside the file, not the file's modification date. The MySQL and PostgreSQL databases stay on the servers you configured.
 
 On Linux, downloads are kept under `~/.cache` because `/tmp` is often a small RAM disk.
 
@@ -180,6 +184,16 @@ SQLite is the default engine. If you prefer MySQL in Settings, install a client 
 sudo apt install -y mariadb-client
 # optional local server:
 # sudo apt install -y mariadb-server
+```
+
+### Optional: PostgreSQL
+
+If you prefer PostgreSQL in Settings, install a client (and a server, if you do not already have one):
+
+```bash
+sudo apt install -y postgresql-client
+# optional local server:
+# sudo apt install -y postgresql
 ```
 
 ### Install the desktop app

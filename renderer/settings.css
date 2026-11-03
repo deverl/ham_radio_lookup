@@ -17,7 +17,7 @@ form {
   font-weight: 600;
 }
 
-.engine .choices { display: flex; gap: 16px; font-weight: 400; }
+.engine .choices { display: flex; flex-wrap: wrap; gap: 16px; font-weight: 400; }
 .engine label { display: inline-flex; align-items: center; gap: 6px; }
 
 .group-title {

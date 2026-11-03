@@ -3,6 +3,7 @@
 const fs = require('fs');
 const { DatabaseSync } = require('node:sqlite');
 const mysql = require('mysql2/promise');
+const { Client } = require('pg');
 const { statement, shapeRecord } = require('./logic');
 
 function searchUnavailableMessage() {
@@ -11,19 +12,18 @@ function searchUnavailableMessage() {
   return error;
 }
 
-function describeMySQL(error, settings) {
+function describeServer(error, settings, product) {
   if (error.code === 'MISSING_DATABASE' || error.friendly) return error;
   const raw = `${error.code || ''} ${error.message || error}`;
   const lower = raw.toLowerCase();
   let message;
-  if (lower.includes('econnrefused') || lower.includes('connection refused') || lower.includes('etimedout') || lower.includes('timed out') || lower.includes('econnreset')) {
-    message = `Could not connect to MySQL at ${settings.host}:${settings.port}. Check that the database is running, or update the connection in Settings.`;
-  } else if (lower.includes('access denied') || error.code === 'ER_ACCESS_DENIED_ERROR') {
+  const refused = lower.includes('econnrefused') || lower.includes('connection refused') || lower.includes('etimedout') || lower.includes('timed out') || lower.includes('econnreset') || error.code === 'ENOTFOUND' || lower.includes('getaddrinfo');
+  if (refused) {
+    message = `Could not connect to ${product} at ${settings.host}:${settings.port}. Check that the database is running, or update the connection in Settings.`;
+  } else if (lower.includes('access denied') || lower.includes('password authentication failed') || error.code === 'ER_ACCESS_DENIED_ERROR' || error.code === '28P01') {
     message = `The database rejected ${settings.username}. Check the username and password in Settings.`;
-  } else if (lower.includes('unknown database') || error.code === 'ER_BAD_DB_ERROR') {
+  } else if (lower.includes('unknown database') || lower.includes('does not exist') || error.code === 'ER_BAD_DB_ERROR' || error.code === '3D000') {
     message = `Database “${settings.database}” was not found on ${settings.host}.`;
-  } else if (error.code === 'ENOTFOUND' || lower.includes('getaddrinfo')) {
-    message = `Could not connect to MySQL at ${settings.host}:${settings.port}. Check that the database is running, or update the connection in Settings.`;
   } else {
     message = `Database error: ${error.message || raw}`;
   }
@@ -61,16 +61,46 @@ async function openMySQL(settings) {
       bigNumberStrings: true,
     });
   } catch (error) {
-    throw describeMySQL(error, settings);
+    throw describeServer(error, settings, 'MySQL');
   }
 }
 
-async function testConnection(settings) {
+async function openPostgres(settings) {
+  validate(settings);
+  const client = new Client({
+    host: settings.host,
+    port: settings.port,
+    user: settings.username,
+    password: settings.password,
+    database: settings.database,
+    connectionTimeoutMillis: 8000,
+    ssl: false,
+  });
+  try {
+    await client.connect();
+    return client;
+  } catch (error) {
+    throw describeServer(error, settings, 'PostgreSQL');
+  }
+}
+
+async function testConnection(engine, settings) {
+  if (engine === 'postgres') {
+    const client = await openPostgres(settings);
+    try {
+      await client.query('SELECT 1');
+    } catch (error) {
+      throw describeServer(error, settings, 'PostgreSQL');
+    } finally {
+      await client.end().catch(() => {});
+    }
+    return;
+  }
   const connection = await openMySQL(settings);
   try {
     await connection.query('SELECT 1');
   } catch (error) {
-    throw describeMySQL(error, settings);
+    throw describeServer(error, settings, 'MySQL');
   } finally {
     await connection.end().catch(() => {});
   }
@@ -82,9 +112,21 @@ async function searchMySQL(settings, built, applyTitleCase) {
     const [rows] = await connection.query(built.sql, built.parameters);
     return rows.map((row) => shapeRecord(row, applyTitleCase));
   } catch (error) {
-    throw describeMySQL(error, settings);
+    throw describeServer(error, settings, 'MySQL');
   } finally {
     await connection.end().catch(() => {});
+  }
+}
+
+async function searchPostgres(settings, built, applyTitleCase) {
+  const client = await openPostgres(settings);
+  try {
+    const result = await client.query(built.sql, built.parameters);
+    return result.rows.map((row) => shapeRecord(row, applyTitleCase));
+  } catch (error) {
+    throw describeServer(error, settings, 'PostgreSQL');
+  } finally {
+    await client.end().catch(() => {});
   }
 }
 
@@ -106,9 +148,10 @@ function searchSQLite(databaseFile, built, applyTitleCase) {
 }
 
 async function search(engine, settings, databaseFile, query) {
-  const built = statement(query);
+  const built = statement(query, engine);
   if (!built) return [];
   if (engine === 'mysql') return searchMySQL(settings, built, query.applyTitleCase);
+  if (engine === 'postgres') return searchPostgres(settings, built, query.applyTitleCase);
   return searchSQLite(databaseFile, built, query.applyTitleCase);
 }
 

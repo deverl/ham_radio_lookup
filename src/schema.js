@@ -283,6 +283,52 @@ LINES TERMINATED BY '\\n';
 `;
 }
 
+function postgresTable(name, columns) {
+  const definitions = columns.map((column) => `${column} TEXT`);
+  return `CREATE TABLE ${name} (\n    ${definitions.join(',\n    ')}\n);`;
+}
+
+function postgresCopy(table, file, format) {
+  return `\\copy ${table} FROM ${sqlString(file)} WITH (${format})`;
+}
+
+function postgresLicenseSQL(hd, en, am) {
+  return `DROP TABLE IF EXISTS hd;
+DROP TABLE IF EXISTS en;
+DROP TABLE IF EXISTS am;
+
+${postgresTable('hd', hdColumns)}
+${postgresTable('en', enColumns)}
+${postgresTable('am', amColumns)}
+
+${postgresCopy('hd', hd, "FORMAT csv, DELIMITER '|', QUOTE E'\\x01', ESCAPE E'\\x01'")}
+${postgresCopy('en', en, "FORMAT csv, DELIMITER '|', QUOTE E'\\x01', ESCAPE E'\\x01'")}
+${postgresCopy('am', am, "FORMAT csv, DELIMITER '|', QUOTE E'\\x01', ESCAPE E'\\x01'")}
+
+CREATE INDEX en_call_sign_index ON en (call_sign);
+CREATE INDEX en_first_name_last_name_index ON en (first_name, last_name);
+CREATE INDEX en_last_name_index ON en (last_name);
+CREATE INDEX en_city ON en (city);
+CREATE INDEX hd_sys_id_index ON hd (sys_id, license_status);
+CREATE INDEX am_sys_id_index ON am (sys_id, operator_class, region_code);
+`;
+}
+
+function postgresDmrSQL(csv) {
+  return `DROP TABLE IF EXISTS dmr;
+
+${postgresTable('dmr', dmrColumns)}
+
+${postgresCopy('dmr', csv, 'FORMAT csv, HEADER true')}
+
+CREATE INDEX dmr_call_sign_index ON dmr (call_sign, radio_id);
+`;
+}
+
+function quotedPostgresIdentifier(name) {
+  return `"${String(name).replaceAll('"', '""')}"`;
+}
+
 module.exports = {
   hdColumns,
   enColumns,
@@ -296,4 +342,7 @@ module.exports = {
   licenseSQL,
   dmrSQL,
   mysqlLiteral,
+  postgresLicenseSQL,
+  postgresDmrSQL,
+  quotedPostgresIdentifier,
 };

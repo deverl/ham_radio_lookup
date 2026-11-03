@@ -32,10 +32,23 @@ function showStatus(message) {
   fit();
 }
 
+const standards = {
+  mysql: { host: '127.0.0.1', port: 3306, database: 'fcc', username: 'fccuser', password: 'fccuser' },
+  postgres: { host: '127.0.0.1', port: 5432, database: 'fcc', username: 'fccuser', password: 'fccuser' },
+};
+
+function serverNote(engine) {
+  if (engine === 'postgres') {
+    return 'The local PostgreSQL defaults are host 127.0.0.1, port 5432, database fcc, and user fccuser.';
+  }
+  return 'The FCC web app uses host 127.0.0.1, port 3306, database fcc, and user fccuser.';
+}
+
 function showEngine(engine) {
-  const mysql = engine === 'mysql';
-  $('mysql').hidden = !mysql;
-  $('sqlite').hidden = mysql;
+  const server = engine === 'mysql' || engine === 'postgres';
+  $('server').hidden = !server;
+  $('sqlite').hidden = server;
+  if (server) $('server-note').textContent = serverNote(engine);
   fit();
 }
 
@@ -49,7 +62,7 @@ function apply(next, { replaceDraft } = { replaceDraft: false }) {
   $('sqlite-update').textContent = next.freshness.kind === 'missing' ? 'Create Database…' : 'Update Database…';
   const busy = Boolean(next.updating) || testing;
   $('sqlite-update').disabled = busy;
-  $('mysql-update').disabled = busy;
+  $('server-update').disabled = busy;
   $('test').disabled = testing;
   $('save').disabled = testing;
   if (replaceDraft) fill(next.settings);
@@ -67,12 +80,14 @@ document.querySelectorAll('input[name="engine"]').forEach((radio) => {
   radio.addEventListener('change', async () => {
     if (!radio.checked) return;
     const next = await window.ham.setEngine(radio.value);
-    apply(next);
+    apply(next, { replaceDraft: true });
+    showStatus('');
   });
 });
 
 $('defaults').addEventListener('click', () => {
-  fill({ host: '127.0.0.1', port: 3306, database: 'fcc', username: 'fccuser', password: 'fccuser' });
+  const engine = snapshot && snapshot.engine === 'postgres' ? 'postgres' : 'mysql';
+  fill(standards[engine]);
   showStatus('Defaults filled in. Save to keep them.');
 });
 
@@ -96,7 +111,7 @@ $('test').addEventListener('click', async () => {
 });
 
 $('sqlite-update').addEventListener('click', requestMaintain);
-$('mysql-update').addEventListener('click', requestMaintain);
+$('server-update').addEventListener('click', requestMaintain);
 
 function requestMaintain() {
   window.ham.maintain();
