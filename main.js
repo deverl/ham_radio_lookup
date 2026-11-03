@@ -29,7 +29,7 @@ const windowIcon = path.join(__dirname, 'build', 'icon.png');
 app.setName('Ham Radio Lookup');
 app.setAboutPanelOptions({
   applicationName: 'Ham Radio Lookup',
-  applicationVersion: '1.1.0',
+  applicationVersion: '1.1.1',
 });
 
 let mainWindow = null;
@@ -255,9 +255,12 @@ ipcMain.handle('test-connection', async (_event, settings) => {
 ipcMain.handle('search', async (_event, query) => {
   const { engine, settings } = store.current();
   try {
+    const started = process.hrtime.bigint();
     const rows = await database.search(engine, settings, store.databaseFile(), query);
+    const seconds = Number(process.hrtime.bigint() - started) / 1e9;
     return {
       ok: true,
+      seconds,
       records: rows.map((row) => ({ ...row, id: crypto.randomUUID() })),
     };
   } catch (error) {

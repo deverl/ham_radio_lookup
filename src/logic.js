@@ -233,6 +233,30 @@ function classifyFreshness(importedAt, now = new Date()) {
   return { kind, importedAt: date.toISOString() };
 }
 
+function queryDuration(seconds) {
+  const elapsed = Number(seconds);
+  if (!Number.isFinite(elapsed) || elapsed < 0) return '';
+  const milliseconds = Math.round(elapsed * 1000);
+  if (milliseconds < 1) return '< 1 ms';
+  if (milliseconds < 1000) return `${milliseconds} ms`;
+  const tenths = Math.round(elapsed * 10) / 10;
+  if (tenths === 1) return '1 second';
+  const text = Number.isInteger(tenths) ? String(tenths) : tenths.toFixed(1);
+  return `${text} seconds`;
+}
+
+function resultSummary(total, shown, filtered, seconds) {
+  if (!total) return '';
+  const duration = queryDuration(seconds);
+  const timing = duration ? ` in ${duration}` : '';
+  if (filtered) {
+    const noun = total === 1 ? 'record' : 'records';
+    return `Showing ${shown} of ${total} ${noun}${timing}`;
+  }
+  if (total === 1) return `Found 1 matching record${timing}`;
+  return `Found ${total} matching records${timing}`;
+}
+
 function formatWhen(iso) {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return '';
@@ -311,6 +335,8 @@ const api = {
   csv,
   tabSeparated,
   classifyFreshness,
+  queryDuration,
+  resultSummary,
   formatWhen,
   databaseNotice,
   confirmCopy,

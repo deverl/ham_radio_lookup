@@ -54,6 +54,18 @@ test('title case matches the Mac app', () => {
   assert.equal(logic.titleCase("O'BRIEN"), "O'Brien");
 });
 
+test('the status line includes how long the query took', () => {
+  assert.equal(logic.queryDuration(0.0004), '< 1 ms');
+  assert.equal(logic.queryDuration(0.048), '48 ms');
+  assert.equal(logic.queryDuration(1), '1 second');
+  assert.equal(logic.queryDuration(1.24), '1.2 seconds');
+  assert.equal(logic.queryDuration(10), '10 seconds');
+  assert.equal(logic.resultSummary(1, 1, false, 0.048), 'Found 1 matching record in 48 ms');
+  assert.equal(logic.resultSummary(12, 12, false, 1.24), 'Found 12 matching records in 1.2 seconds');
+  assert.equal(logic.resultSummary(12, 3, true, 1.24), 'Showing 3 of 12 records in 1.2 seconds');
+  assert.equal(logic.resultSummary(0, 0, false, 1.24), '');
+});
+
 test('eight days is current and one second more is stale', () => {
   const imported = new Date('2026-10-01T12:00:00Z');
   const exactly = new Date(imported.getTime() + logic.MAXIMUM_AGE_MS);

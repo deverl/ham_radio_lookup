@@ -33,6 +33,7 @@ const state = {
   searching: false,
   updating: false,
   error: '',
+  querySeconds: null,
   statuses: new Set(['A']),
   classes: new Set(HamLogic.OPERATOR_CLASSES.map((item) => item.code)),
 };
@@ -143,14 +144,12 @@ function applySortAndFilter() {
 }
 
 function summaryText() {
-  const total = state.records.length;
-  if (!total) return '';
-  if (state.filter.trim()) {
-    const noun = total === 1 ? 'record' : 'records';
-    return `Showing ${state.filtered.length} of ${total} ${noun}`;
-  }
-  if (total === 1) return 'Found 1 matching record';
-  return `Found ${total} matching records`;
+  return HamLogic.resultSummary(
+    state.records.length,
+    state.filtered.length,
+    Boolean(state.filter.trim()),
+    state.querySeconds,
+  );
 }
 
 function icon(name) {
@@ -408,6 +407,7 @@ async function runSearch() {
   if (state.searching || state.updating) return;
   if (searchUnavailable()) {
     state.records = [];
+    state.querySeconds = null;
     state.error = '';
     state.hasSearched = false;
     state.hadCriteria = false;
@@ -427,20 +427,24 @@ async function runSearch() {
   state.hadCriteria = hasCriteria(query);
   if (!state.hadCriteria) {
     state.records = [];
+    state.querySeconds = null;
     state.searching = false;
     render();
     return;
   }
   state.searching = true;
   state.records = [];
+  state.querySeconds = null;
   render();
   const result = await window.ham.search(query);
   state.searching = false;
   if (result.ok) {
     state.records = result.records;
+    state.querySeconds = result.seconds;
     state.error = '';
   } else {
     state.records = [];
+    state.querySeconds = null;
     state.error = result.message;
   }
   render();
@@ -460,6 +464,7 @@ function clearForm() {
   state.filter = '';
   filterInput.value = '';
   state.records = [];
+  state.querySeconds = null;
   state.selection.clear();
   state.sortKey = '';
   updateSortMarks();
@@ -577,6 +582,7 @@ window.ham.on('update-progress', (snapshot) => {
     state.updating = false;
     if (snapshot.replaced || snapshot.fraction === 1) {
       state.records = [];
+      state.querySeconds = null;
       state.selection.clear();
       state.filter = '';
       filterInput.value = '';
