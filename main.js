@@ -29,7 +29,7 @@ const windowIcon = path.join(__dirname, 'build', 'icon.png');
 app.setName('Ham Radio Lookup');
 app.setAboutPanelOptions({
   applicationName: 'Ham Radio Lookup',
-  applicationVersion: '1.1.1',
+  applicationVersion: '1.1.2',
 });
 
 let mainWindow = null;

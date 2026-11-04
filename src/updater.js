@@ -126,7 +126,7 @@ function download(url, destination, { onProgress, isCancelled, replaced = () => 
       }
       const lib = target.startsWith('http://') ? http : https;
       const request = lib.get(target, {
-        headers: { 'User-Agent': 'HamRadioLookup/1.1.1' },
+        headers: { 'User-Agent': 'HamRadioLookup/1.1.2' },
       }, (response) => {
         const status = response.statusCode || 0;
         if (status >= 300 && status < 400 && response.headers.location) {
