@@ -236,6 +236,16 @@ body { overflow: hidden; }
 .menu button:hover:not(:disabled) { background: var(--accent); color: white; }
 
 #alert { width: 440px; }
+.state-index {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 14px;
+}
+.state-index[hidden] { display: none; }
+.state-index input { margin-top: 2px; }
+.state-index span { display: flex; flex-direction: column; gap: 2px; }
+.state-index small { color: var(--secondary); font-size: 12px; }
 #sheet { width: 480px; }
 #sheet .detail { margin-top: 8px; color: var(--secondary); font-size: 12px; white-space: pre-wrap; }
 #sheet .error { margin-top: 8px; color: #d70015; white-space: pre-wrap; }

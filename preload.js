@@ -8,7 +8,7 @@ contextBridge.exposeInMainWorld('ham', {
   setEngine: (engine) => ipcRenderer.invoke('set-engine', engine),
   saveConnection: (settings) => ipcRenderer.invoke('save-connection', settings),
   testConnection: (settings) => ipcRenderer.invoke('test-connection', settings),
-  startUpdate: () => ipcRenderer.invoke('start-update'),
+  startUpdate: (options) => ipcRenderer.invoke('start-update', options),
   cancelUpdate: () => ipcRenderer.invoke('cancel-update'),
   exportCSV: (csv) => ipcRenderer.invoke('export-csv', csv),
   copyText: (text) => ipcRenderer.invoke('copy-text', text),

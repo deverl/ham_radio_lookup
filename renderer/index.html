@@ -99,6 +99,13 @@
   <dialog id="alert">
     <h2 id="alert-title"></h2>
     <p id="alert-message"></p>
+    <label class="state-index" id="alert-index" hidden>
+      <input type="checkbox" id="alert-state-index">
+      <span>
+        Build an index for state-only searches
+        <small>This adds significant time to database creation, and speeds up state-only searches.</small>
+      </span>
+    </label>
     <div class="dialog-buttons">
       <button type="button" class="regular" id="alert-cancel"></button>
       <button type="button" class="primary" id="alert-ok"></button>

@@ -29,7 +29,7 @@ const windowIcon = path.join(__dirname, 'build', 'icon.png');
 app.setName('Ham Radio Lookup');
 app.setAboutPanelOptions({
   applicationName: 'Ham Radio Lookup',
-  applicationVersion: '1.1.2',
+  applicationVersion: '1.1.3',
 });
 
 let mainWindow = null;
@@ -299,7 +299,7 @@ ipcMain.on('resize-settings', (event, height) => {
   window.setContentSize(width, next);
 });
 
-ipcMain.handle('start-update', async () => {
+ipcMain.handle('start-update', async (_event, options) => {
   if (updateRun) return { ok: false, message: 'An update is already running.' };
   const creating = store.snapshot().searchUnavailable;
   let cancelled = false;
@@ -313,6 +313,7 @@ ipcMain.handle('start-update', async () => {
       engine,
       settings,
       databaseFile: store.databaseFile(),
+      stateIndex: Boolean(options && options.stateIndex),
       isCancelled: () => cancelled,
       onProgress: (snapshot) => {
         const now = Date.now();

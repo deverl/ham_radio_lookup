@@ -166,7 +166,9 @@ test('postgres import copies the pipe files and skips the radioid header', () =>
   assert.ok(sql.includes("\\copy hd FROM '/tmp/a''b.dat' WITH (FORMAT csv, DELIMITER '|', QUOTE E'\\x01', ESCAPE E'\\x01')"));
   assert.doesNotMatch(sql, /line_end/);
   assert.match(sql, /CREATE INDEX en_call_sign_index/);
-  assert.match(sql, /CREATE INDEX en_state_name_index ON en \(state, last_name, first_name\)/);
+  assert.doesNotMatch(sql, /en_state_name_index/);
+  const indexed = schema.postgresLicenseSQL("/tmp/a'b.dat", '/tmp/EN.dat', '/tmp/AM.dat', true);
+  assert.match(indexed, /CREATE INDEX en_state_name_index ON en \(state, last_name, first_name\)/);
   assert.doesNotMatch(sql, /dmr_call_sign_index/);
   const dmr = schema.postgresDmrSQL('/tmp/user.csv');
   assert.match(dmr, /\\copy dmr FROM '\/tmp\/user\.csv' WITH \(FORMAT csv, HEADER true\)/);
@@ -176,7 +178,11 @@ test('mysql load statements keep the pipe separator and the bang is not involved
   const sql = schema.licenseSQL('fcc', '/tmp/HD.dat', '/tmp/EN.dat', '/tmp/AM.dat');
   assert.match(sql, /FIELDS TERMINATED BY '\|'/);
   assert.match(sql, /CREATE DATABASE IF NOT EXISTS `fcc`/);
-  assert.match(sql, /CREATE INDEX en_state_name_index ON en \(state, last_name, first_name\)/);
+  assert.doesNotMatch(sql, /en_state_name_index/);
+  const indexed = schema.licenseSQL('fcc', '/tmp/HD.dat', '/tmp/EN.dat', '/tmp/AM.dat', true);
+  assert.match(indexed, /CREATE INDEX en_state_name_index ON en \(state, last_name, first_name\)/);
+  assert.doesNotMatch(schema.finishScript('2026-01-01T00:00:00Z'), /en_state_name_index/);
+  assert.match(schema.finishScript('2026-01-01T00:00:00Z', true), /en_state_name_index/);
   const dmr = schema.dmrSQL('fcc', "/tmp/user's.csv");
   assert.match(dmr, /user\\'s\.csv/);
 });

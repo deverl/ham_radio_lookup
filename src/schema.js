@@ -58,10 +58,16 @@ const createIndexes = `CREATE INDEX en_call_sign_index ON en (call_sign);
 CREATE INDEX en_first_name_last_name_index ON en (first_name, last_name);
 CREATE INDEX en_last_name_index ON en (last_name);
 CREATE INDEX en_city ON en (city);
-CREATE INDEX en_state_name_index ON en (state, last_name, first_name);
 CREATE INDEX hd_sys_id_index ON hd (sys_id, license_status);
 CREATE INDEX am_sys_id_index ON am (sys_id, operator_class, region_code);
 CREATE INDEX dmr_call_sign_index ON dmr (call_sign, radio_id);`;
+
+const stateNameIndex = 'CREATE INDEX en_state_name_index ON en (state, last_name, first_name);';
+
+function withStateIndex(sql, stateIndex) {
+  if (!stateIndex) return sql;
+  return `${sql.trimEnd()}\n${stateNameIndex}\n`;
+}
 
 function sqlString(value) {
   return `'${String(value).replaceAll("'", "''")}'`;
@@ -88,11 +94,11 @@ function dmrScript(csv) {
 `;
 }
 
-function finishScript(importedAt) {
-  return `${createIndexes}
+function finishScript(importedAt, stateIndex = false) {
+  return withStateIndex(`${createIndexes}
 INSERT INTO app_info (imported_at) VALUES (${sqlString(importedAt)});
 SELECT COUNT(*) FROM en;
-`;
+`, stateIndex);
 }
 
 function quotedIdentifier(name) {
@@ -230,12 +236,11 @@ CREATE INDEX en_call_sign_index ON en (call_sign);
 CREATE INDEX en_first_name_last_name_index ON en (first_name, last_name);
 CREATE INDEX en_last_name_index ON en (last_name);
 CREATE INDEX en_city ON en (city);
-CREATE INDEX en_state_name_index ON en (state, last_name, first_name);
 CREATE INDEX hd_sys_id_index ON hd (sys_id, license_status);
 CREATE INDEX am_sys_id_index ON am (sys_id, operator_class, region_code);`;
 
-function licenseSQL(database, hd, en, am) {
-  return `CREATE DATABASE IF NOT EXISTS ${quotedIdentifier(database)};
+function licenseSQL(database, hd, en, am, stateIndex = false) {
+  return withStateIndex(`CREATE DATABASE IF NOT EXISTS ${quotedIdentifier(database)};
 USE ${quotedIdentifier(database)};
 
 DROP TABLE IF EXISTS hd;
@@ -258,7 +263,7 @@ LOAD DATA LOCAL INFILE ${mysqlLiteral(am)}
 INTO TABLE am
 FIELDS TERMINATED BY '|'
 LINES TERMINATED BY '\\n';
-`;
+`, stateIndex);
 }
 
 function dmrSQL(database, csv) {
@@ -294,8 +299,8 @@ function postgresCopy(table, file, format) {
   return `\\copy ${table} FROM ${sqlString(file)} WITH (${format})`;
 }
 
-function postgresLicenseSQL(hd, en, am) {
-  return `DROP TABLE IF EXISTS hd;
+function postgresLicenseSQL(hd, en, am, stateIndex = false) {
+  return withStateIndex(`DROP TABLE IF EXISTS hd;
 DROP TABLE IF EXISTS en;
 DROP TABLE IF EXISTS am;
 
@@ -311,10 +316,9 @@ CREATE INDEX en_call_sign_index ON en (call_sign);
 CREATE INDEX en_first_name_last_name_index ON en (first_name, last_name);
 CREATE INDEX en_last_name_index ON en (last_name);
 CREATE INDEX en_city ON en (city);
-CREATE INDEX en_state_name_index ON en (state, last_name, first_name);
 CREATE INDEX hd_sys_id_index ON hd (sys_id, license_status);
 CREATE INDEX am_sys_id_index ON am (sys_id, operator_class, region_code);
-`;
+`, stateIndex);
 }
 
 function postgresDmrSQL(csv) {

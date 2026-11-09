@@ -495,11 +495,13 @@ $('banner-settings').addEventListener('click', openSettings);
 document.getElementById('database').addEventListener('click', openSettings);
 exportButton.addEventListener('click', exportResults);
 
-function openDialog(title, message, ok, cancel, onOk) {
+function openDialog(title, message, ok, cancel, onOk, options = {}) {
   $('alert-title').textContent = title;
   $('alert-message').textContent = message;
   $('alert-ok').textContent = ok;
   $('alert-cancel').textContent = cancel;
+  $('alert-index').hidden = !options.stateIndex;
+  if (options.stateIndex) $('alert-state-index').checked = false;
   if ($('alert').open) $('alert').close();
   $('alert').showModal();
   $('alert-ok').onclick = () => {
@@ -512,7 +514,7 @@ function openDialog(title, message, ok, cancel, onOk) {
 function openNotice() {
   if (!state.snapshot || state.snapshot.engine !== 'sqlite') return;
   const notice = HamLogic.databaseNotice(state.snapshot.freshness);
-  openDialog(notice.title, notice.message, notice.button, notice.cancel, beginUpdate);
+  openDialog(notice.title, notice.message, notice.button, notice.cancel, beginUpdate, { stateIndex: true });
 }
 
 function openConfirm() {
@@ -523,7 +525,7 @@ function openConfirm() {
     state.snapshot.settings.database,
     state.snapshot.downloadDir,
   );
-  openDialog(copy.title, copy.message, copy.button, 'Cancel', beginUpdate);
+  openDialog(copy.title, copy.message, copy.button, 'Cancel', beginUpdate, { stateIndex: true });
 }
 
 function showSheet() {
@@ -543,10 +545,11 @@ function showSheet() {
 }
 
 async function beginUpdate() {
+  const stateIndex = !$('alert-index').hidden && $('alert-state-index').checked;
   state.updating = true;
   syncControls();
   showSheet();
-  await window.ham.startUpdate();
+  await window.ham.startUpdate({ stateIndex });
   state.updating = false;
   syncControls();
 }

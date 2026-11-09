@@ -126,7 +126,7 @@ function download(url, destination, { onProgress, isCancelled, replaced = () => 
       }
       const lib = target.startsWith('http://') ? http : https;
       const request = lib.get(target, {
-        headers: { 'User-Agent': 'HamRadioLookup/1.1.2' },
+        headers: { 'User-Agent': 'HamRadioLookup/1.1.3' },
       }, (response) => {
         const status = response.statusCode || 0;
         if (status >= 300 && status < 400 && response.headers.location) {
@@ -397,6 +397,7 @@ async function updateDatabase({
   engine,
   settings,
   databaseFile,
+  stateIndex = false,
   onProgress,
   isCancelled,
 }) {
@@ -443,12 +444,14 @@ async function updateDatabase({
       report({
         status: 'Rebuilding license tables…',
         fraction: null,
-        detail: 'This replaces the current license records and can take a few minutes.',
+        detail: stateIndex
+          ? 'This replaces the current license records. The state-only search index adds significant time.'
+          : 'This replaces the current license records and can take a few minutes.',
         canCancel: false,
       });
       const license = engine === 'postgres'
-        ? schema.postgresLicenseSQL(hd, en, am)
-        : schema.licenseSQL(database, hd, en, am);
+        ? schema.postgresLicenseSQL(hd, en, am, stateIndex)
+        : schema.licenseSQL(database, hd, en, am, stateIndex);
       const exec = engine === 'postgres'
         ? (sql) => runPostgres(sql, settings, dir)
         : (sql) => runMySQL(sql, settings, dir);
@@ -517,10 +520,12 @@ async function updateDatabase({
     report({
       status: 'Indexing license records…',
       fraction: null,
-      detail: 'This can take a few minutes.',
+      detail: stateIndex
+        ? 'The state-only search index adds significant time.'
+        : 'This can take a few minutes.',
       canCancel: false,
     });
-    const count = await sqlite(schema.finishScript(new Date().toISOString()), staging, dir);
+    const count = await sqlite(schema.finishScript(new Date().toISOString(), stateIndex), staging, dir);
     if (lastLine(count) === '0') throw failed('The license file did not contain any records.', false);
 
     report({ status: 'Installing the database…', fraction: null, detail: databaseFile, canCancel: false });
