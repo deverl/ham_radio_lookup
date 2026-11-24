@@ -6,6 +6,8 @@ contextBridge.exposeInMainWorld('ham', {
   bootstrap: () => ipcRenderer.invoke('bootstrap'),
   search: (query) => ipcRenderer.invoke('search', query),
   setEngine: (engine) => ipcRenderer.invoke('set-engine', engine),
+  setLicenseLink: (link) => ipcRenderer.invoke('set-license-link', link),
+  openLicense: (callSign) => ipcRenderer.invoke('open-license', callSign),
   saveConnection: (settings) => ipcRenderer.invoke('save-connection', settings),
   testConnection: (settings) => ipcRenderer.invoke('test-connection', settings),
   startUpdate: (options) => ipcRenderer.invoke('start-update', options),

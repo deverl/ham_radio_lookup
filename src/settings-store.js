@@ -57,6 +57,10 @@ function knownEngine(engine) {
   return engine === 'mysql' || engine === 'postgres' ? engine : 'sqlite';
 }
 
+function knownLink(value) {
+  return value === 'qrz' || value === 'radioid' ? value : 'fcc';
+}
+
 function readKeychain(account) {
   if (process.platform !== 'darwin') return null;
   try {
@@ -104,6 +108,7 @@ function persist() {
   const { engine, mysql, postgres } = memory;
   const body = {
     engine,
+    licenseLink: memory.licenseLink,
     host: mysql.host,
     port: mysql.port,
     database: mysql.database,
@@ -133,6 +138,7 @@ function load() {
     const plist = readMacPreferences();
     stored = plist ? {
       engine: plist['HamRadioQuery.engine'],
+      licenseLink: plist['HamRadioQuery.licenseLink'],
       host: plist['HamRadioQuery.host'],
       port: plist['HamRadioQuery.port'],
       database: plist['HamRadioQuery.database'],
@@ -151,7 +157,12 @@ function load() {
   else if (process.platform !== 'darwin' && stored.postgres && stored.postgres.password != null) {
     postgres.password = String(stored.postgres.password);
   }
-  memory = { engine, mysql, postgres };
+  let licenseLink = stored.licenseLink;
+  if (licenseLink !== 'fcc' && licenseLink !== 'qrz' && licenseLink !== 'radioid') {
+    const plist = readMacPreferences();
+    licenseLink = plist && plist['HamRadioQuery.licenseLink'];
+  }
+  memory = { engine, mysql, postgres, licenseLink: knownLink(licenseLink) };
   if (imported) persist();
   return memory;
 }
@@ -191,7 +202,14 @@ function snapshot() {
     freshnessDescription: fresh.kind === 'missing' ? 'Not created' : formatWhen(fresh.importedAt),
     searchUnavailable: engine === 'sqlite' && fresh.kind === 'missing',
     downloadDir: downloadDirectory(),
+    licenseLink: state().licenseLink,
   };
+}
+
+function setLicenseLink(link) {
+  state().licenseLink = knownLink(link);
+  persist();
+  return snapshot();
 }
 
 function setEngine(engine) {
@@ -218,6 +236,7 @@ module.exports = {
   current,
   snapshot,
   setEngine,
+  setLicenseLink,
   saveConnection,
   freshness,
 };

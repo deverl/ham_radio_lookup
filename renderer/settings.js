@@ -56,6 +56,8 @@ function apply(next, { replaceDraft } = { replaceDraft: false }) {
   snapshot = next;
   const selected = document.querySelector(`input[name="engine"][value="${next.engine}"]`);
   if (selected) selected.checked = true;
+  const link = document.querySelector(`input[name="licenseLink"][value="${next.licenseLink || 'fcc'}"]`);
+  if (link) link.checked = true;
   $('location').textContent = next.databasePath;
   $('built').textContent = next.freshnessDescription;
   $('stale').hidden = next.freshness.kind !== 'stale';
@@ -75,6 +77,14 @@ function fit() {
     window.ham.resizeSettings(Math.ceil(form.getBoundingClientRect().bottom));
   });
 }
+
+document.querySelectorAll('input[name="licenseLink"]').forEach((radio) => {
+  radio.addEventListener('change', async () => {
+    if (!radio.checked) return;
+    const next = await window.ham.setLicenseLink(radio.value);
+    apply(next);
+  });
+});
 
 document.querySelectorAll('input[name="engine"]').forEach((radio) => {
   radio.addEventListener('change', async () => {

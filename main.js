@@ -1,7 +1,7 @@
 'use strict';
 
 const path = require('path');
-const { app, BrowserWindow, Menu, dialog, clipboard, ipcMain, nativeTheme } = require('electron');
+const { app, BrowserWindow, Menu, dialog, clipboard, ipcMain, nativeTheme, shell } = require('electron');
 
 // A copied Linux build cannot use the setuid sandbox helper, so Electron
 // aborts before a window appears. This has to be set before the app is ready.
@@ -22,20 +22,27 @@ process.on('warning', (warning) => {
 const store = require('./src/settings-store');
 const database = require('./src/database');
 const { updateDatabase } = require('./src/updater');
-const { maintenanceTitle } = require('./src/logic');
+const { maintenanceTitle, licenseDestination } = require('./src/logic');
 
 const windowIcon = path.join(__dirname, 'build', 'icon.png');
 
 app.setName('Ham Radio Lookup');
 app.setAboutPanelOptions({
   applicationName: 'Ham Radio Lookup',
-  applicationVersion: '1.1.3',
+  applicationVersion: '1.1.4',
 });
 
 let mainWindow = null;
 let settingsWindow = null;
 let updateRun = null;
-let menuFlags = { canExport: false, canCopy: false, canMaintain: true, maintenanceTitle: 'Update License Database…' };
+let menuFlags = {
+  canExport: false,
+  canCopy: false,
+  canOpen: false,
+  openTitle: 'Open This License at the FCC',
+  canMaintain: true,
+  maintenanceTitle: 'Update License Database…',
+};
 
 function chromeColor(kind) {
   const dark = nativeTheme.shouldUseDarkColors;
@@ -140,6 +147,11 @@ function refreshMenu() {
   if (exportItem) exportItem.enabled = menuFlags.canExport;
   const copyItem = menu.getMenuItemById('copy-rows');
   if (copyItem) copyItem.enabled = menuFlags.canCopy;
+  const openItem = menu.getMenuItemById('open-license');
+  if (openItem) {
+    openItem.enabled = Boolean(menuFlags.canOpen);
+    if (menuFlags.openTitle) openItem.label = menuFlags.openTitle;
+  }
 }
 
 function installMenu() {
@@ -179,6 +191,7 @@ function installMenu() {
         { type: 'separator' },
         { label: 'Filter Results', accelerator: 'CmdOrCtrl+F', click: () => sendMain('menu-command', 'focus-filter') },
         { id: 'copy-rows', label: 'Copy Selected Rows', accelerator: 'Shift+CmdOrCtrl+C', enabled: false, click: () => sendMain('menu-command', 'copy-selection') },
+        { id: 'open-license', label: 'Open This License at the FCC', enabled: false, click: () => sendMain('menu-command', 'open-license') },
       ],
     },
     {
@@ -220,6 +233,20 @@ ipcMain.handle('request-maintain', () => {
   mainWindow.focus();
   sendMain('menu-command', 'maintain');
   return true;
+});
+
+ipcMain.handle('set-license-link', (_event, link) => {
+  store.setLicenseLink(link);
+  const next = publicState();
+  broadcast('state', next);
+  return next;
+});
+
+ipcMain.handle('open-license', async (_event, record) => {
+  const destination = licenseDestination(store.snapshot().licenseLink, record);
+  if (!destination?.url) return { ok: false };
+  await shell.openExternal(destination.url);
+  return { ok: true };
 });
 
 ipcMain.handle('set-engine', (_event, engine) => {
@@ -293,7 +320,7 @@ ipcMain.on('menu-state', (_event, state) => {
 ipcMain.on('resize-settings', (event, height) => {
   const window = BrowserWindow.fromWebContents(event.sender);
   if (!window || window !== settingsWindow) return;
-  const next = Math.min(780, Math.max(160, Math.ceil(height)));
+  const next = Math.min(860, Math.max(160, Math.ceil(height)));
   const [contentWidth] = window.getContentSize();
   const width = process.platform === 'darwin' ? contentWidth : Math.max(contentWidth, 560);
   window.setContentSize(width, next);

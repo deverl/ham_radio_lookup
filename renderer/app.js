@@ -43,6 +43,8 @@ const firstName = $('first-name');
 const lastName = $('last-name');
 const city = $('city');
 const stateField = $('state');
+const frn = $('frn');
+const dmrID = $('dmr-id');
 const titleCase = $('title-case');
 const searchButton = $('search');
 const clearButton = $('clear');
@@ -63,6 +65,8 @@ callSign.addEventListener('input', () => {
 function queryFromForm() {
   return {
     callSign: callSign.value,
+    frn: frn.value,
+    dmrID: dmrID.value,
     firstName: firstName.value,
     lastName: lastName.value,
     city: city.value,
@@ -74,7 +78,7 @@ function queryFromForm() {
 }
 
 function hasCriteria(query) {
-  return [query.callSign, query.firstName, query.lastName, query.city, query.state]
+  return [query.callSign, query.frn, query.dmrID, query.firstName, query.lastName, query.city, query.state]
     .some((value) => value.trim());
 }
 
@@ -122,9 +126,13 @@ function syncControls() {
   $('search-spinner').hidden = !state.searching;
   $('status-spinner').hidden = !state.searching;
   exportButton.disabled = state.filtered.length === 0;
+  const openTitle = HamLogic.licenseMenuTitle(state.snapshot?.licenseLink);
+  $('menu-open').textContent = openTitle;
   window.ham.menuState({
     canExport: state.filtered.length > 0,
     canCopy: state.selection.size > 0,
+    canOpen: state.selection.size === 1,
+    openTitle,
     canMaintain: !state.searching && !state.updating,
     maintenanceTitle: state.snapshot
       ? HamLogic.maintenanceTitle(state.snapshot.engine, state.snapshot.freshness)
@@ -194,7 +202,7 @@ function showEmpty(kind) {
   } else if (kind === 'criteria') {
     empty.insertAdjacentHTML('afterbegin', icon('text'));
     add('h2', 'Enter a Search');
-    add('p', 'Enter a call sign, name, city, or state.');
+    add('p', 'Enter a call sign, name, city, state, FRN, or DMR ID.');
   } else if (kind === 'needed') {
     empty.insertAdjacentHTML('afterbegin', icon('drivePlus'));
     add('h2', 'License Database Needed');
@@ -209,7 +217,7 @@ function showEmpty(kind) {
   } else {
     empty.insertAdjacentHTML('afterbegin', icon('antenna'));
     add('h2', 'Ham Radio Lookup');
-    add('p', 'Search FCC license records by call sign, name, city, or state.');
+    add('p', 'Search FCC license records by call sign, name, city, state, FRN, or DMR ID.');
   }
 }
 
@@ -362,9 +370,10 @@ tableScroll.addEventListener('contextmenu', (event) => {
     syncControls();
   }
   menu.hidden = false;
-  menu.style.left = `${Math.min(event.clientX, window.innerWidth - 190)}px`;
-  menu.style.top = `${Math.min(event.clientY, window.innerHeight - 70)}px`;
+  menu.style.left = `${Math.min(event.clientX, window.innerWidth - 280)}px`;
+  menu.style.top = `${Math.min(event.clientY, window.innerHeight - 100)}px`;
   $('menu-search').disabled = state.selection.size !== 1;
+  $('menu-open').disabled = state.selection.size !== 1;
 });
 
 document.addEventListener('click', (event) => {
@@ -392,10 +401,16 @@ $('menu-search').addEventListener('click', () => {
   const chosen = chosenRecords();
   if (chosen.length === 1) searchCallSign(chosen[0]);
 });
+$('menu-open').addEventListener('click', () => {
+  menu.hidden = true;
+  openLicense();
+});
 
 function searchCallSign(record) {
   if (!record) return;
   callSign.value = record.callSign;
+  frn.value = '';
+  dmrID.value = '';
   firstName.value = '';
   lastName.value = '';
   city.value = '';
@@ -450,8 +465,23 @@ async function runSearch() {
   render();
 }
 
+async function openLicense() {
+  const chosen = chosenRecords();
+  if (chosen.length !== 1) return;
+  const result = await window.ham.openLicense({
+    callSign: chosen[0].callSign,
+    systemID: chosen[0].systemID,
+  });
+  if (result && result.ok === false && result.message) {
+    state.error = result.message;
+    render();
+  }
+}
+
 function clearForm() {
   callSign.value = '';
+  frn.value = '';
+  dmrID.value = '';
   firstName.value = '';
   lastName.value = '';
   city.value = '';
@@ -620,6 +650,7 @@ window.ham.on('state', (snapshot) => applySnapshot(snapshot));
 window.ham.on('menu-command', (command) => {
   if (command === 'export') exportResults();
   else if (command === 'copy-selection') copySelection();
+  else if (command === 'open-license') openLicense();
   else if (command === 'maintain') openConfirm();
   else if (command === 'focus-filter' && !$('filterbar').hidden) filterInput.focus();
 });

@@ -1,7 +1,7 @@
 {
   "name": "ham-radio-lookup",
   "productName": "Ham Radio Lookup",
-  "version": "1.1.3",
+  "version": "1.1.4",
   "private": true,
   "description": "Search FCC amateur radio licenses and RadioID DMR IDs.",
   "main": "main.js",

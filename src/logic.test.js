@@ -39,6 +39,46 @@ test('like prefixes escape wildcards and use the bang escape', () => {
   assert.doesNotMatch(built.sql, /ESCAPE '\\'/);
 });
 
+test('FRN and DMR ID match the whole value', () => {
+  const built = logic.statement({
+    callSign: '',
+    frn: ' 0001234567 ',
+    dmrID: '3216068',
+    firstName: '',
+    lastName: '',
+    city: '',
+    state: '',
+    licenseStatuses: ['A'],
+    operatorClasses: [],
+  });
+  assert.match(built.sql, /en\.frn = \?/);
+  assert.match(built.sql, /dmr\.radio_id = \?/);
+  assert.deepEqual(built.parameters, ['0001234567', '3216068', 'A']);
+  const postgres = logic.statement({
+    frn: '0001234567',
+    dmrID: '3216068',
+    licenseStatuses: ['A'],
+  }, 'postgres');
+  assert.match(postgres.sql, /en\.frn = \$1/);
+  assert.match(postgres.sql, /dmr\.radio_id = \$2/);
+});
+
+test('opening a license uses the chosen site', () => {
+  const record = { callSign: ' w1aw ', systemID: '780866' };
+  assert.deepEqual(logic.licenseDestination('qrz', record), { url: 'https://www.qrz.com/db/W1AW' });
+  assert.deepEqual(
+    logic.licenseDestination('radioid', record),
+    { url: 'https://radioid.net/database/search?callsign=W1AW' },
+  );
+  assert.deepEqual(logic.licenseDestination('fcc', record), {
+    url: 'https://wireless2.fcc.gov/UlsApp/UlsSearch/license.jsp?licKey=780866',
+  });
+  assert.equal(logic.licenseDestination('fcc', { callSign: 'W1AW', systemID: '' }), null);
+  assert.equal(logic.licenseDestination('fcc', { callSign: 'W1AW', systemID: '780866;drop' }), null);
+  assert.equal(logic.licenseDestination('qrz', { callSign: 'W1 AW', systemID: '780866' }), null);
+  assert.equal(logic.licenseMenuTitle('qrz'), 'Open This License at QRZ');
+});
+
 test('an empty search is not a query', () => {
   assert.equal(logic.statement({
     callSign: '  ', firstName: '', lastName: '', city: '', state: '',
@@ -118,6 +158,7 @@ test('sqlite search reads a small license file', () => {
   assert.equal(rows[0].city, 'Emmett');
   assert.equal(rows[0].operatorClassName, 'Amateur Extra');
   assert.equal(rows[0].dmrID, '3216068');
+  assert.equal(rows[0].systemID, '1');
 
   const escaped = searchSQLite(file, logic.statement({
     callSign: '', firstName: '', lastName: 'sto_es', city: '', state: 'ID',

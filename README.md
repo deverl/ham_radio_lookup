@@ -4,7 +4,7 @@ Ham Radio Lookup is an Electron app for searching United States amateur radio li
 
 The window is titled **Ham Radio Lookup**. On macOS, settings can still use the legacy preference and Keychain identity `us.ds6.HamRadioQuery` from the earlier native [Swift/SwiftUI macOS app](https://github.com/deverl/ham_radio_query).
 
-A native macOS app for searching GMRS licenses is at [github.com/deverl/gmrs_query](https://github.com/deverl/gmrs_query).
+For GMRS licenses, the native macOS app is at [github.com/deverl/gmrs_query](https://github.com/deverl/gmrs_query). The cross-platform Electron app is [gmrs_radio_lookup](https://github.com/deverl/gmrs_lookup).
 
 ## What you can look up
 
@@ -34,7 +34,7 @@ The license file is about 190 MB. Building the database also downloads the Radio
 
 ## Choose SQLite, MySQL, or PostgreSQL
 
-Search uses one database at a time. Open **Settings** (**Ham Radio Lookup > Settings…**, or **Ctrl+,** / **Command+,**) or click **Database** in the toolbar. At the top of that window, **Database** is a set of radio buttons: **SQLite**, **MySQL**, and **PostgreSQL**. The choice is saved, and the next search uses it. MySQL and PostgreSQL each keep their own host, port, database, username, and password.
+Search uses one database at a time. Open **Settings** (**Ham Radio Lookup > Settings…**, or **Ctrl+,** / **Command+**,) or click **Database** in the toolbar. **Open a license at** chooses FCC, QRZ, or RadioID for the Open This License action. FCC is the default, and the choice is saved immediately. On a Mac, a new install copies that choice from the native app when this app has not saved one yet. Below that, **Database** is a set of radio buttons: **SQLite**, **MySQL**, and **PostgreSQL**. The choice is saved, and the next search uses it. MySQL and PostgreSQL each keep their own host, port, database, username, and password.
 
 **SQLite** is the default. The license data lives in a file on this computer, so no database server is required. The settings window shows the file path and the last time it was built. **Create Database…** or **Update Database…** downloads the FCC and RadioID files and builds that file. Search stays disabled until the file exists.
 
@@ -76,16 +76,18 @@ You can cancel while a download is in progress. Import cannot be cancelled. Down
 
 ## Search
 
-Enter at least one of call sign, first name, last name, city, or state, then click **Search** or press Return.
+Enter at least one of call sign, first name, last name, city, state, FRN, or DMR ID, then click **Search** or press Return.
 
 - **Call sign** matches the whole call sign. Typing is uppercased. `w7dns` finds `W7DNS` and does not find other call signs that merely contain those letters.
+- **FRN** matches the whole FCC registration number.
+- **DMR ID** matches the whole RadioID number.
 - **First name**, **last name**, and **city** match from the start. `Em` matches Emmett. A name or city must begin with what you typed.
 - **State** matches the two-letter abbreviation exactly. `id` is treated as `ID`.
 - `%` and `_` in a name or city are ordinary characters, not wildcards.
 
 **Clear** resets the fields, the options, and the results.
 
-If every field is blank, Search asks you to enter a call sign, name, city, or state.
+If every field is blank, Search asks you to enter a call sign, name, city, state, FRN, or DMR ID.
 
 ### Options
 
@@ -110,10 +112,13 @@ Select rows and use the context menu, or:
 | Copy the selected rows as tab-separated text, with a header | Edit > Copy Selected Rows | Ctrl+Shift+C / Command+Shift+C |
 | Export the rows currently shown as CSV | File > Export Results…, or the Export toolbar button | Ctrl+Shift+E / Command+Shift+E |
 | Look up one row's call sign | Double-click the row, or choose Search This Call Sign | |
+| Open one row at the FCC, QRZ, or RadioID | Edit > Open This License at…, or the context menu | |
 
 Copy and export use the full operator class and license status names. The suggested CSV name is `Ham Radio Lookup`. Export includes the filtered rows, so a filter changes what is written.
 
-Double-clicking a row, or choosing **Search This Call Sign**, puts that call sign in the search field, clears the name, city, and state, and searches again. That action applies to one row.
+Double-clicking a row, or choosing **Search This Call Sign**, puts that call sign in the search field, clears the name, city, state, FRN, and DMR ID, and searches again. That action applies to one row.
+
+**Open This License** also applies to one row. The menu name follows the site chosen in Settings. FCC opens that license's detail page in the Universal Licensing System. QRZ opens the QRZ call-sign page. RadioID opens the RadioID search for that call sign.
 
 ## Where files are stored
 

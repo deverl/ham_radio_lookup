@@ -44,6 +44,14 @@
           <label for="state">State</label>
           <input id="state" placeholder="ID" autocomplete="off" spellcheck="false" maxlength="2">
         </div>
+        <div class="field span-start">
+          <label for="frn">FRN</label>
+          <input id="frn" class="mono" placeholder="Exact" autocomplete="off" spellcheck="false">
+        </div>
+        <div class="field">
+          <label for="dmr-id">DMR ID</label>
+          <input id="dmr-id" class="mono" placeholder="Exact" autocomplete="off" spellcheck="false">
+        </div>
       </div>
       <div class="search-actions">
         <button type="button" class="disclosure" id="options-toggle" aria-expanded="false">
@@ -66,7 +74,7 @@
           <div class="checks" id="class-checks"></div>
           <p class="hint" id="class-hint" hidden>None selected, so every class matches.</p>
         </div>
-        <p class="caption">Call sign matches the whole value. Name and city match from the start.</p>
+        <p class="caption">Call sign, FRN, and DMR ID match the whole value. Name and city match from the start.</p>
         <label class="title-case"><input type="checkbox" id="title-case" checked> Apply Title Case</label>
       </div>
     </form>
@@ -129,6 +137,7 @@
   <div class="menu" id="menu" hidden>
     <button type="button" id="menu-copy">Copy</button>
     <button type="button" id="menu-search">Search This Call Sign</button>
+    <button type="button" id="menu-open">Open This License at the FCC</button>
   </div>
 
   <script src="../src/logic.js"></script>

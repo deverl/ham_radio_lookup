@@ -89,11 +89,13 @@ function trimmed(value) {
 
 function statement(query, engine) {
   const callSign = trimmed(query.callSign).toUpperCase();
+  const frn = trimmed(query.frn);
+  const dmrID = trimmed(query.dmrID);
   const firstName = trimmed(query.firstName);
   const lastName = trimmed(query.lastName);
   const city = trimmed(query.city);
   const state = trimmed(query.state).toUpperCase();
-  if (!callSign && !firstName && !lastName && !city && !state) return null;
+  if (!callSign && !frn && !dmrID && !firstName && !lastName && !city && !state) return null;
 
   const postgres = engine === 'postgres';
   const like = postgres ? 'ILIKE' : 'LIKE';
@@ -110,6 +112,14 @@ function statement(query, engine) {
   if (callSign) {
     clauses.push(`en.call_sign = ${mark()}`);
     parameters.push(callSign);
+  }
+  if (frn) {
+    clauses.push(`en.frn = ${mark()}`);
+    parameters.push(frn);
+  }
+  if (dmrID) {
+    clauses.push(`dmr.radio_id = ${mark()}`);
+    parameters.push(dmrID);
   }
   if (firstName) {
     clauses.push(`en.first_name ${like} ${mark()}${escape}`);
@@ -139,6 +149,7 @@ function statement(query, engine) {
     parameters.push(...classes);
   }
 
+  const systemID = engine === 'mysql' ? 'CAST(hd.sys_id AS CHAR)' : 'CAST(hd.sys_id AS TEXT)';
   const sql = `SELECT en.call_sign AS call_sign,
        en.first_name AS first_name,
        en.last_name AS last_name,
@@ -150,7 +161,8 @@ function statement(query, engine) {
        hd.license_status AS license_status,
        en.frn AS frn,
        am.region_code AS region_code,
-       ${nullFn}(dmr.radio_id, '') AS dmr_id
+       ${nullFn}(dmr.radio_id, '') AS dmr_id,
+       ${systemID} AS sys_id
 FROM en
 JOIN hd ON hd.sys_id = en.sys_id
 JOIN am ON am.sys_id = en.sys_id
@@ -184,6 +196,7 @@ function shapeRecord(row, applyTitleCase) {
     frn: text(row.frn),
     regionCode: text(row.region_code),
     dmrID: text(row.dmr_id),
+    systemID: text(row.sys_id),
   };
 }
 
@@ -309,6 +322,31 @@ function maintenanceTitle(engine, freshness) {
   return 'Update License Database…';
 }
 
+function callSignForLink(callSign) {
+  const call = trimmed(callSign).toUpperCase();
+  return /^[A-Z0-9]{1,10}$/.test(call) ? call : '';
+}
+
+function licenseMenuTitle(kind) {
+  const title = kind === 'qrz' ? 'QRZ' : kind === 'radioid' ? 'RadioID' : 'FCC';
+  return `Open This License at ${title}`;
+}
+
+// The FCC detail page uses the unique system identifier as licKey.
+function licenseDestination(kind, record) {
+  const call = callSignForLink(record && record.callSign);
+  if (kind === 'qrz' || kind === 'radioid') {
+    if (!call) return null;
+    const url = kind === 'qrz'
+      ? `https://www.qrz.com/db/${call}`
+      : `https://radioid.net/database/search?callsign=${call}`;
+    return { url };
+  }
+  const systemID = trimmed(record && record.systemID);
+  if (!/^[0-9]{1,15}$/.test(systemID)) return null;
+  return { url: `https://wireless2.fcc.gov/UlsApp/UlsSearch/license.jsp?licKey=${systemID}` };
+}
+
 function validatedName(name) {
   const trimmedName = trimmed(name);
   if (!/^[A-Za-z0-9_]{1,64}$/.test(trimmedName)) {
@@ -329,6 +367,8 @@ const api = {
   titleCase,
   likePrefix,
   statement,
+  licenseMenuTitle,
+  licenseDestination,
   shapeRecord,
   matches,
   columns,
